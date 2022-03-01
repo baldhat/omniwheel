@@ -108,7 +108,7 @@ void driveMotors(float spike_period1, float spike_period2, float spike_period3, 
   spike_period3 = abs(spike_period3);
 
   long t_0 = micros();
-  long loop_counter = 0;
+  unsigned long loop_counter = 0;
   while (micros() - t_0 < duration) {
     if (micros() - last_state_change1 >= spike_period1) {
       SWT(PORTD, 3);
@@ -127,6 +127,7 @@ void driveMotors(float spike_period1, float spike_period2, float spike_period3, 
 
   for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], HIGH);
 
+  Serial.println(loop_counter);
   Serial.print("Mean loop duration: ");
   Serial.println(duration * 1.0 / loop_counter);
 }
@@ -199,7 +200,6 @@ void receiveSerialData() {
 }
 
 int parseCommand() {
-  Serial.print("Parsing "); Serial.println(serialString);
   command = serialString[0];
   strtok(serialString, ";"); // throw away
 
