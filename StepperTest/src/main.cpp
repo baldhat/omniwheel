@@ -1,13 +1,19 @@
 
 #include "Arduino.h"
 
-void rotate(unsigned int spike_period1, unsigned int spike_period2, unsigned int spike_period3);
-void moveDirectLine(float relativeDirection, float distance);
-float speedToPWMPeriod(float speed_wheel1);
+void rotate(float relativeAngle, float angularVelocity);
+void moveDirectLine(float relativeDirection, float velocity, float distance);
+float velocityToPWMPeriod(float velocity_wheel1);
+void receiveSerialData();
+int parseCommand();
+void runCommand();
 
 // Macros for faster digital output
 #define CLR(x,y) (x&=(~(1<<y)))
 #define SET(x,y) (x|=(1<<y))
+#define SWT(x,y) (x^=(1<<y))
+
+#define RADIUS 0.12
 
 // Motor 1
 #define dirPin1 4
@@ -32,8 +38,14 @@ const int STEPS_PER_REVOLUTION = 200;
 const int MICRO_STEPS = 32;
 const int STEPS_PER_REV_WITH_MICRO_STEPPING = STEPS_PER_REVOLUTION * MICRO_STEPS;
 const float MAX_RPM = 7.8125;
-const float MAX_SPEED = 0.08; // [m/s]
+const float MAX_VELOCITY = 0.08; // [m/s]
 const float MIN_PERIOD = 20; // [µs]
+
+char serialString[50];
+int nextWritePosition = 0;
+boolean isNewFullCommand = false;
+char command;
+float parameters[3];
 
 void setup() {
   Serial.begin(115200);
@@ -47,81 +59,76 @@ void setup() {
 }
 
 void loop() {
-  Serial.println("Enter direction");
-  while (Serial.available() <= 0) {
-    delay(10);
+  receiveSerialData();
+  if (isNewFullCommand == true) {
+    if (parseCommand() >= 0)
+      runCommand();
+    else Serial.println("Could not parse the command");
   }
-  float direction = Serial.parseFloat();
-  while (Serial.available() > 0) Serial.read(); // flush
+  delay(5);
+}
 
-  // 0.0174533: Conversion factor from degrees to radians
-  moveDirectLine(direction * 0.0174533, 0.32); // always move 32cm
+void runCommand() {
+  switch(command) {
+    case 'R':
+      rotate(parameters[0], parameters[1]);
+      break;
+    case 'D':
+      moveDirectLine(parameters[0], parameters[1], parameters[2]);
+      break;
+  }
 }
 
 /**
-  Rotate each motor by sending the specified spike_periods until `duration` has passed.
-  @param spike_period[1-3]:     A float specifiying the time between two HIGHs sent to the corresponding motor, in microseconds [µs]
+  Drive each motor by sending the specified spike_periods until `duration` has passed.
+  @param spike_period[1-3]:     A float specifiying HALF the time between two HIGHs sent to the corresponding motor, in microseconds [µs]
   @param duration:              An unsigned long specifying the duration of the spike pulses, in microseconds [µs]
 */
-void rotate(float spike_period1, float spike_period2, float spike_period3, unsigned long duration) {
-  unsigned int num_steps1 = 0;
-  unsigned int num_steps2 = 0;
-  unsigned int num_steps3 = 0;
+void driveMotors(float spike_period1, float spike_period2, float spike_period3, unsigned long duration) {
   unsigned long last_state_change1 = 0;
   unsigned long last_state_change2 = 0;
   unsigned long last_state_change3 = 0;
-  boolean state1 = LOW;
-  boolean state2 = LOW;
-  boolean state3 = LOW;
+  // boolean state1 = LOW;
+  // boolean state2 = LOW;
+  // boolean state3 = LOW;
 
   for (int i = 0; i < 3; i++) {
     digitalWrite(enablePins[i], LOW);
   }
-  delayMicroseconds(2);
 
   digitalWrite(dirPin1, spike_period1 >= 0 ? HIGH : LOW);
   digitalWrite(dirPin2, spike_period2 >= 0 ? HIGH : LOW);
   digitalWrite(dirPin3, spike_period3 >= 0 ? HIGH : LOW);
+
+  // writing to dirPins and enablePins should happen at least 650 ns before first step pulse
+  delayMicroseconds(1);
 
   spike_period1 = abs(spike_period1);
   spike_period2 = abs(spike_period2);
   spike_period3 = abs(spike_period3);
 
   long t_0 = micros();
+  long loop_counter = 0;
   while (micros() - t_0 < duration) {
-    if (state1 != HIGH && micros() - last_state_change1 >= spike_period1) {
-      SET(PORTD, 3);
+    if (micros() - last_state_change1 >= spike_period1) {
+      SWT(PORTD, 3);
       last_state_change1 = micros();
-      state1 = HIGH;
-      num_steps1++;
-    } else if (state1 == HIGH && micros() - last_state_change1 >= spike_period1) {
-      CLR(PORTD, 3);
-      last_state_change1 = micros();
-      state1 = LOW;
     }
-    if (state2 != HIGH && micros() - last_state_change2 >= spike_period2) {
-      SET(PORTD, 6);
+    if (micros() - last_state_change2 >= spike_period2) {
+      SWT(PORTD, 6);
       last_state_change2 = micros();
-      state2 = HIGH;
-      num_steps2++;
-    } else if (state2 == HIGH && micros() - last_state_change2 >= spike_period2) {
-      CLR(PORTD, 6);
-      last_state_change2 = micros();
-      state2 = LOW;
     }
-    if (state3 != HIGH && micros() - last_state_change3 >= spike_period3) {
-      SET(PORTB, 1);
+    if (micros() - last_state_change3 >= spike_period3) {
+      SWT(PORTB, 1);
       last_state_change3 = micros();
-      state3 = HIGH;
-      num_steps3++;
-    } else if (state3 == HIGH && micros() - last_state_change3 >= spike_period3) {
-      CLR(PORTB, 1);
-      last_state_change3 = micros();
-      state3 = LOW;
     }
+    loop_counter++;
   }
 
   for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], HIGH);
+
+  Serial.print("Mean loop duration: ");
+  Serial.println(duration * 1.0 / loop_counter);
 }
 
 /**
@@ -129,14 +136,14 @@ void rotate(float spike_period1, float spike_period2, float spike_period3, unsig
   @param relativeDirection: The relative radians angle towards which to move in a direct line
   @param distance:          How far the robot should move, in meters [m]
 */
-void moveDirectLine(float relativeDirection, float distance) {
-  float speed_wheel1 = cos(2.61799 - relativeDirection) * MAX_SPEED;   // 150°
-  float speed_wheel2 = cos(0.523599 - relativeDirection) * MAX_SPEED;  //  30°
-  float speed_wheel3 = cos(4.71239 - relativeDirection) * MAX_SPEED;   // 270°
+void moveDirectLine(float relativeDirection, float velocity, float distance) {
+  float velocity_wheel1 = cos(2.61799 - relativeDirection) * velocity;   // 150°
+  float velocity_wheel2 = cos(0.523599 - relativeDirection) * velocity;  //  30°
+  float velocity_wheel3 = cos(4.71239 - relativeDirection) * velocity;   // 270°
 
-  float period_wheel1 = speedToPWMPeriod(speed_wheel1);
-  float period_wheel2 = speedToPWMPeriod(speed_wheel2);
-  float period_wheel3 = speedToPWMPeriod(speed_wheel3);
+  float period_wheel1 = velocityToPWMPeriod(velocity_wheel1);
+  float period_wheel2 = velocityToPWMPeriod(velocity_wheel2);
+  float period_wheel3 = velocityToPWMPeriod(velocity_wheel3);
 
   Serial.print("wheel1 [µs]: ");
   Serial.println(period_wheel1);
@@ -145,19 +152,62 @@ void moveDirectLine(float relativeDirection, float distance) {
   Serial.print("wheel3 [µs]: ");
   Serial.println(period_wheel3);
 
-  const unsigned long duration = (unsigned long) (distance / MAX_SPEED) * 1000000; // [µs]
+  Serial.println((distance / velocity) * 1000000);
+  unsigned long duration = (unsigned long) (distance / velocity) * 1000000; // [µs]
 
-  Serial.print("Duration [µs]:");
-  Serial.println(duration);
+  // Serial.print("Duration [µs]: ");
+  // Serial.println(duration);
 
-  rotate(period_wheel1, period_wheel2, period_wheel3, duration);
+  driveMotors(period_wheel1, period_wheel2, period_wheel3, duration);
+}
+
+void rotate(float relativeAngle, float angularVelocity) {
+  float velocity = RADIUS * angularVelocity;
+  float wheel_velocity = relativeAngle < 0 ? -velocity : velocity;
+  float period = velocityToPWMPeriod(wheel_velocity);
+
+  unsigned long duration = (unsigned long) (abs(relativeAngle) / angularVelocity) * 1000000; // [µs]
+
+  driveMotors(period, period, period, duration);
 }
 
 /**
-  Convert wheel speed to PWM period in microseconds [µs]
+  Convert wheel velocity to PWM period in microseconds [µs]
 */
-float speedToPWMPeriod(float speed_wheel) {
-  if (speed_wheel == 0) return 0;
-  else if (speed_wheel < 0) return -(1 / (abs(speed_wheel) / MAX_SPEED)) * MIN_PERIOD;
-  else return (1 / (speed_wheel / MAX_SPEED)) * MIN_PERIOD;
+float velocityToPWMPeriod(float velocity_wheel) {
+  if (velocity_wheel == 0) return 0;
+  else if (velocity_wheel < 0) return -(1 / (abs(velocity_wheel) / MAX_VELOCITY)) * MIN_PERIOD;
+  else return (1 / (velocity_wheel / MAX_VELOCITY)) * MIN_PERIOD;
+}
+
+void receiveSerialData() {
+  while (Serial.available() > 0) {
+    char c = Serial.read();
+    if (c == '{') {
+      nextWritePosition = 0;
+      isNewFullCommand = false;
+    } else if (c == '}')
+      isNewFullCommand = true;
+    else {
+      if (nextWritePosition >= 50) {
+        Serial.println("Command too long!");
+        break;
+      }
+      serialString[nextWritePosition++] = c;
+    }
+  }
+}
+
+int parseCommand() {
+  Serial.print("Parsing "); Serial.println(serialString);
+  command = serialString[0];
+  strtok(serialString, ";"); // throw away
+
+  for (int i = 0; i < 3; i++) {
+    char *param = strtok(NULL, ";");
+    parameters[i] = atof(param);
+  }
+
+  isNewFullCommand = false;
+  return 0;
 }
