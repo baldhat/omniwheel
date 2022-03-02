@@ -77,25 +77,25 @@ void setup() {
     digitalWrite(enablePins[i], HIGH); // Disable motors until needed (LOW = ENABLED)
   }
 
-  cli();
-  TCCR0A = 0;
-  TCCR0B = 0;
-  TCCR0B |= B00000010; // 500ns per tick
-  TIMSK0 |= B00000010; // compare match A
-  OCR0A = 255;
-
-  TCCR1A = 0;
-  TCCR1B = 0;
-  TCCR1B |= B00000010; // 500ns per tick
-  TIMSK1 |= B00000010; // compare match A
-  OCR1A = 255;
-
-  TCCR2A = 0;
-  TCCR2B = 0;
-  TCCR2B |= B00000010; // 500ns per tick
-  TIMSK2 |= B00000010; // compare match A
-  OCR2A = 255;
-  sei();
+  // cli();
+  // TCCR0A = 0;
+  // TCCR0B = 0;
+  // TCCR0B |= B00000010; // 500ns per tick
+  // TIMSK0 |= B00000010; // compare match A
+  // OCR0A = 255;
+  //
+  // TCCR1A = 0;
+  // TCCR1B = 0;
+  // TCCR1B |= B00000010; // 500ns per tick
+  // TIMSK1 |= B00000010; // compare match A
+  // OCR1A = 255;
+  //
+  // TCCR2A = 0;
+  // TCCR2B = 0;
+  // TCCR2B |= B00000010; // 500ns per tick
+  // TIMSK2 |= B00000010; // compare match A
+  // OCR2A = 255;
+  // sei();
 }
 
 void loop() {
@@ -132,62 +132,37 @@ void driveMotors(float spike_period1, float spike_period2, float spike_period3, 
   abs_spike_period1 = abs(spike_period1);
   abs_spike_period2 = abs(spike_period2);
   abs_spike_period3 = abs(spike_period3);
-  //
-  // Serial.print("Last actualDuration1: "); Serial.println(actualDuration1);
-  // Serial.print("Last actualDuration2: "); Serial.println(actualDuration2);
-  // Serial.print("Last actualDuration3: "); Serial.println(actualDuration3);
 
-  Serial.print("Wheel1_period:: "); Serial.println(spike_period1);
-  Serial.print("Wheel2_period:: "); Serial.println(spike_period2);
-  Serial.print("Wheel3_period:: "); Serial.println(spike_period3);
+  long last_state_change1 = 0;
+  long last_state_change2 = 0;
+  long last_state_change3 = 0;
 
   for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], LOW);
 
-  cli();
-
-  wheel1_num_steps = duration / abs_spike_period1;
-  wheel2_num_steps = duration / abs_spike_period2;
-  wheel3_num_steps = duration / abs_spike_period3;
-
-  if (abs_spike_period1 < 128) {
-    TCCR0B |= B00000010; // 8 scaler
-    OCR0A = lowByte((int) round(abs_spike_period1));
-  } else if (abs_spike_period1 >= 128 && abs_spike_period1 < 4096) {
-    TCCR0B |= B00000100; // 256 scaler
-    OCR0A = lowByte((int) round(abs_spike_period1) / 32);
-  } else {
-    digitalWrite(enablePin1, HIGH);
-  }
-  if (abs_spike_period2 < 128) {
-    TCCR1B |= B00000010; // 8 scaler
-    OCR1A = lowByte((int) round(abs_spike_period2));
-  } else if (abs_spike_period2 >= 128 && abs_spike_period2 < 4096) {
-    TCCR1B |= B00000100; // 256 scaler
-    OCR1A = lowByte((int) round(abs_spike_period2) / 32);
-  } else {
-    digitalWrite(enablePin2, HIGH);
-  }
-  if (abs_spike_period3 < 128) {
-    TCCR2B |= B00000010; // 8 scaler
-    OCR2A = lowByte((int) round(abs_spike_period3));
-  } else if (abs_spike_period3 >= 128 && abs_spike_period3 < 4096) {
-    TCCR2B |= B00000100; // 256 scaler
-    OCR2A = lowByte((int) round(abs_spike_period3) / 32);
-  } else {
-    digitalWrite(enablePin3, HIGH);
+  long t_0 = micros();
+  long loop_counter = 0;
+  while (micros() - t_0 < duration) {
+    if (micros() - last_state_change1 >= abs_spike_period1) {
+      SWT(PORTD, 3);
+      last_state_change1 = micros();
+    }
+    if (micros() - last_state_change2 >= abs_spike_period2) {
+      SWT(PORTD, 6);
+      last_state_change2 = micros();
+    }
+    if (micros() - last_state_change3 >= abs_spike_period3) {
+      SWT(PORTB, 1);
+      last_state_change3 = micros();
+    }
+    loop_counter++;
   }
 
-  wheel1_counter = 0;
-  wheel2_counter = 0;
-  wheel3_counter = 0;
-  // actualDuration1 = 0;
-  // actualDuration2 = 0;
-  // actualDuration3 = 0;
-  runningWheel1 = true;
-  runningWheel2 = true;
-  runningWheel3 = true;
-  sei();
+  Serial.print("Mean loop time: "); Serial.println(duration * 1.0 / loop_counter);
+  Serial.println(loop_counter);
+
+  for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], HIGH);
 }
+
 
 /**
   Move in a direct line towards the given direction.
@@ -268,57 +243,57 @@ int parseCommand() {
   return 0;
 }
 
-// Interrupts:
-ISR(TIMER0_COMPA_vect) {
-  if (runningWheel1) {
-    TCNT0 = 0;
-    SWT(PORTD, 3);
-    wheel1_counter++;
-    // long expectedDuration1 = abs_spike_period1 * wheel1_counter;
-    // actualDuration1 += OCR0A;
-    // if (expectedDuration1 < actualDuration1)
-    //   OCR0A--;
-    // else if (actualDuration1 < expectedDuration1)
-    //   OCR0A++;
-    if (wheel1_counter >= wheel1_num_steps) {
-      digitalWrite(enablePin1, HIGH);
-      runningWheel1 = false;
-    }
-  }
-}
-
-ISR(TIMER1_COMPA_vect){
-  if (runningWheel2) {
-    TCNT1 = 0;
-    SWT(PORTD, 6);
-    wheel2_counter++;
-    // long expectedDuration2 = abs_spike_period2 * wheel2_counter;
-    // actualDuration2 += OCR1A;
-    // if (expectedDuration2 < actualDuration2)
-    //   OCR1A--;
-    // else if (actualDuration2 < expectedDuration2)
-    //   OCR1A++;
-    if (wheel2_counter >= wheel2_num_steps) {
-      digitalWrite(enablePin2, HIGH);
-      runningWheel2 = false;
-    }
-  }
-}
-
-ISR(TIMER2_COMPA_vect){
-  if (runningWheel3) {
-    TCNT2 = 0;
-    SWT(PORTB, 1);
-    wheel3_counter++;
-    // long expectedDuration3 = abs_spike_period3 * wheel3_counter;
-    // actualDuration3 += OCR2A;
-    // if (expectedDuration3 < actualDuration3)
-    //   OCR2A--;
-    // else if (actualDuration3 < expectedDuration3)
-    //   OCR2A++;
-    if (wheel3_counter >= wheel3_num_steps) {
-      digitalWrite(enablePin3, HIGH);
-      runningWheel3 = false;
-    }
-  }
-}
+// // Interrupts:
+// ISR(TIMER0_COMPA_vect) {
+//   if (runningWheel1) {
+//     TCNT0 = 0;
+//     SWT(PORTD, 3);
+//     wheel1_counter++;
+//     // long expectedDuration1 = abs_spike_period1 * wheel1_counter;
+//     // actualDuration1 += OCR0A;
+//     // if (expectedDuration1 < actualDuration1)
+//     //   OCR0A--;
+//     // else if (actualDuration1 < expectedDuration1)
+//     //   OCR0A++;
+//     if (wheel1_counter >= wheel1_num_steps) {
+//       digitalWrite(enablePin1, HIGH);
+//       runningWheel1 = false;
+//     }
+//   }
+// }
+//
+// ISR(TIMER1_COMPA_vect){
+//   if (runningWheel2) {
+//     TCNT1 = 0;
+//     SWT(PORTD, 6);
+//     wheel2_counter++;
+//     // long expectedDuration2 = abs_spike_period2 * wheel2_counter;
+//     // actualDuration2 += OCR1A;
+//     // if (expectedDuration2 < actualDuration2)
+//     //   OCR1A--;
+//     // else if (actualDuration2 < expectedDuration2)
+//     //   OCR1A++;
+//     if (wheel2_counter >= wheel2_num_steps) {
+//       digitalWrite(enablePin2, HIGH);
+//       runningWheel2 = false;
+//     }
+//   }
+// }
+//
+// ISR(TIMER2_COMPA_vect){
+//   if (runningWheel3) {
+//     TCNT2 = 0;
+//     SWT(PORTB, 1);
+//     wheel3_counter++;
+//     // long expectedDuration3 = abs_spike_period3 * wheel3_counter;
+//     // actualDuration3 += OCR2A;
+//     // if (expectedDuration3 < actualDuration3)
+//     //   OCR2A--;
+//     // else if (actualDuration3 < expectedDuration3)
+//     //   OCR2A++;
+//     if (wheel3_counter >= wheel3_num_steps) {
+//       digitalWrite(enablePin3, HIGH);
+//       runningWheel3 = false;
+//     }
+//   }
+// }
