@@ -9,9 +9,7 @@ int parseCommand();
 void runCommand();
 
 // Macro for faster digital output
-#define SWT(x,y) (x ^= (1<<y))
-#define CLR(x,y) (x &= (~(1<<y)))
-#define SET(x,y) (x |= (1<<y))
+#define SWT(x,y) (x^=(1<<y))
 
 #define RADIUS 0.12
 
@@ -47,25 +45,13 @@ boolean isNewFullCommand = false;
 char command;
 float parameters[3];
 
-volatile long wheel1_counter = 0;
-volatile long wheel2_counter = 0;
-volatile long wheel3_counter = 0;
+long wheel1_counter = 0;
+long wheel2_counter = 0;
+long wheel3_counter = 0;
 
-volatile long wheel1_num_steps = 0;
-volatile long wheel2_num_steps = 0;
-volatile long wheel3_num_steps = 0;
-
-float abs_spike_period1;
-float abs_spike_period2;
-float abs_spike_period3;
-
-// volatile long actualDuration1;
-// volatile long actualDuration2;
-// volatile long actualDuration3;
-//
-volatile boolean runningWheel1 = false;
-volatile boolean runningWheel2 = false;
-volatile boolean runningWheel3 = false;
+long wheel1_num_steps = 0;
+long wheel2_num_steps = 0;
+long wheel3_num_steps = 0;
 
 void setup() {
   Serial.begin(115200);
@@ -77,25 +63,25 @@ void setup() {
     digitalWrite(enablePins[i], HIGH); // Disable motors until needed (LOW = ENABLED)
   }
 
-  // cli();
-  // TCCR0A = 0;
-  // TCCR0B = 0;
-  // TCCR0B |= B00000010; // 500ns per tick
-  // TIMSK0 |= B00000010; // compare match A
-  // OCR0A = 255;
-  //
-  // TCCR1A = 0;
-  // TCCR1B = 0;
-  // TCCR1B |= B00000010; // 500ns per tick
-  // TIMSK1 |= B00000010; // compare match A
-  // OCR1A = 255;
-  //
-  // TCCR2A = 0;
-  // TCCR2B = 0;
-  // TCCR2B |= B00000010; // 500ns per tick
-  // TIMSK2 |= B00000010; // compare match A
-  // OCR2A = 255;
-  // sei();
+  cli();
+  TCCR0A = 0;
+  TCCR0B = 0;
+  TCCR0B |= B00000010; // 500ns per tick
+  TIMSK0 |= B00000010; // compare match A
+  OCR0A = 255;
+
+  TCCR1A = 0;
+  TCCR1B = 0;
+  TCCR1B |= B00000010; // 500ns per tick
+  TIMSK1 |= B00000010; // compare match A
+  OCR1A = 255;
+
+  TCCR2A = 0;
+  TCCR2B = 0;
+  TCCR2B |= B00000010; // 500ns per tick
+  TIMSK2 |= B00000010; // compare match A
+  OCR2A = 255;
+  sei();
 }
 
 void loop() {
@@ -129,40 +115,54 @@ void driveMotors(float spike_period1, float spike_period2, float spike_period3, 
   digitalWrite(dirPin2, spike_period2 < 0 ? LOW : HIGH );
   digitalWrite(dirPin3, spike_period3 < 0 ? LOW : HIGH );
 
-  abs_spike_period1 = abs(spike_period1);
-  abs_spike_period2 = abs(spike_period2);
-  abs_spike_period3 = abs(spike_period3);
+  spike_period1 = abs(spike_period1);
+  spike_period2 = abs(spike_period2);
+  spike_period3 = abs(spike_period3);
 
-  long last_state_change1 = 0;
-  long last_state_change2 = 0;
-  long last_state_change3 = 0;
-
+  cli();
   for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], LOW);
 
-  long t_0 = micros();
-  long loop_counter = 0;
-  while (micros() - t_0 < duration) {
-    if (micros() - last_state_change1 >= abs_spike_period1) {
-      SWT(PORTD, 3);
-      last_state_change1 = micros();
-    }
-    if (micros() - last_state_change2 >= abs_spike_period2) {
-      SWT(PORTD, 6);
-      last_state_change2 = micros();
-    }
-    if (micros() - last_state_change3 >= abs_spike_period3) {
-      SWT(PORTB, 1);
-      last_state_change3 = micros();
-    }
-    loop_counter++;
+  wheel1_num_steps = duration / spike_period1;
+  wheel2_num_steps = duration / spike_period2;
+  wheel3_num_steps = duration / spike_period3;
+
+  Serial.print("Wheel1_num_steps: "); Serial.println(wheel1_num_steps);
+  Serial.print("Wheel2_num_steps: "); Serial.println(wheel2_num_steps);
+  Serial.print("Wheel3_num_steps: "); Serial.println(wheel3_num_steps);
+
+  wheel1_counter = 0;
+  wheel2_counter = 0;
+  wheel3_counter = 0;
+
+  if (spike_period1 < 127) {
+    TCCR0B |= B00000010; // 8 scaler
+    OCR0A = lowByte((int) round(spike_period1) * 2);
+  } else if (spike_period1 >= 128 && spike_period1 < 4096) {
+    TCCR0B |= B00000100; // 256 scaler
+    OCR0A = lowByte((int) round(spike_period1) / 16);
+  } else {
+    digitalWrite(enablePin1, HIGH);
   }
-
-  Serial.print("Mean loop time: "); Serial.println(duration * 1.0 / loop_counter);
-  Serial.println(loop_counter);
-
-  for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], HIGH);
+  if (spike_period2 < 127) {
+    TCCR1B |= B00000010; // 8 scaler
+    OCR1A = lowByte((int) round(spike_period2) * 2);
+  } else if (spike_period2 >= 128 && spike_period2 < 4096) {
+    TCCR1B |= B00000100; // 256 scaler
+    OCR1A = lowByte((int) round(spike_period2) / 16);
+  } else {
+    digitalWrite(enablePin2, HIGH);
+  }
+  if (spike_period3 < 127) {
+    TCCR2B |= B00000010; // 8 scaler
+    OCR2A = lowByte((int) round(spike_period3) * 2);
+  } else if (spike_period3 >= 128 && spike_period3 < 4096) {
+    TCCR2B |= B00000100; // 256 scaler
+    OCR2A = lowByte((int) round(spike_period3) / 16);
+  } else {
+    digitalWrite(enablePin3, HIGH);
+  }
+  sei();
 }
-
 
 /**
   Move in a direct line towards the given direction.
@@ -185,10 +185,11 @@ void moveDirectLine(float relativeDirection, float velocity, float distance) {
   Serial.print("wheel3 [µs]: ");
   Serial.println(period_wheel3);
 
+  Serial.println((distance / velocity) * 1000000);
   unsigned long duration = (unsigned long) (distance / velocity) * 1000000; // [µs]
 
-  Serial.print("Duration [µs]: ");
-  Serial.println(duration);
+  // Serial.print("Duration [µs]: ");
+  // Serial.println(duration);
 
   driveMotors(period_wheel1, period_wheel2, period_wheel3, duration);
 }
@@ -232,6 +233,7 @@ void receiveSerialData() {
 
 int parseCommand() {
   command = serialString[0];
+  if (command != 'D' && command != 'R') return -1;
   strtok(serialString, ";"); // throw away
 
   for (int i = 0; i < 3; i++) {
@@ -243,57 +245,30 @@ int parseCommand() {
   return 0;
 }
 
-// // Interrupts:
-// ISR(TIMER0_COMPA_vect) {
-//   if (runningWheel1) {
-//     TCNT0 = 0;
-//     SWT(PORTD, 3);
-//     wheel1_counter++;
-//     // long expectedDuration1 = abs_spike_period1 * wheel1_counter;
-//     // actualDuration1 += OCR0A;
-//     // if (expectedDuration1 < actualDuration1)
-//     //   OCR0A--;
-//     // else if (actualDuration1 < expectedDuration1)
-//     //   OCR0A++;
-//     if (wheel1_counter >= wheel1_num_steps) {
-//       digitalWrite(enablePin1, HIGH);
-//       runningWheel1 = false;
-//     }
-//   }
-// }
-//
-// ISR(TIMER1_COMPA_vect){
-//   if (runningWheel2) {
-//     TCNT1 = 0;
-//     SWT(PORTD, 6);
-//     wheel2_counter++;
-//     // long expectedDuration2 = abs_spike_period2 * wheel2_counter;
-//     // actualDuration2 += OCR1A;
-//     // if (expectedDuration2 < actualDuration2)
-//     //   OCR1A--;
-//     // else if (actualDuration2 < expectedDuration2)
-//     //   OCR1A++;
-//     if (wheel2_counter >= wheel2_num_steps) {
-//       digitalWrite(enablePin2, HIGH);
-//       runningWheel2 = false;
-//     }
-//   }
-// }
-//
-// ISR(TIMER2_COMPA_vect){
-//   if (runningWheel3) {
-//     TCNT2 = 0;
-//     SWT(PORTB, 1);
-//     wheel3_counter++;
-//     // long expectedDuration3 = abs_spike_period3 * wheel3_counter;
-//     // actualDuration3 += OCR2A;
-//     // if (expectedDuration3 < actualDuration3)
-//     //   OCR2A--;
-//     // else if (actualDuration3 < expectedDuration3)
-//     //   OCR2A++;
-//     if (wheel3_counter >= wheel3_num_steps) {
-//       digitalWrite(enablePin3, HIGH);
-//       runningWheel3 = false;
-//     }
-//   }
-// }
+// Interrupts:
+ISR(TIMER0_COMPA_vect){
+  TCNT0  = 0;
+  SWT(PORTD, 3);
+  wheel1_counter++;
+  if (wheel1_counter >= wheel1_num_steps) {
+    digitalWrite(enablePins[0], HIGH);
+  }
+}
+
+ISR(TIMER1_COMPA_vect){
+  TCNT1  = 0;
+  SWT(PORTD, 6);
+  wheel2_counter++;
+  if (wheel2_counter >= wheel2_num_steps) {
+    digitalWrite(enablePins[1], HIGH);
+  }
+}
+
+ISR(TIMER2_COMPA_vect){
+  TCNT2  = 0;
+  SWT(PORTB, 1);
+  wheel3_counter++;
+  if (wheel3_counter >= wheel3_num_steps) {
+    digitalWrite(enablePins[2], HIGH);
+  }
+}
