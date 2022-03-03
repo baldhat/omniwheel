@@ -135,8 +135,8 @@ void driveMotors(float spike_period1, float spike_period2, float spike_period3, 
   // wheel3_num_steps = duration / abs(spike_period3);
 
   driving_duration1 = duration;
-  driving_duration1 = duration;
-  driving_duration1 = duration;
+  driving_duration2 = duration;
+  driving_duration3 = duration;
   //
   // Serial.print("Wheel1_num_steps: "); Serial.println(wheel1_num_steps);
   // Serial.print("Wheel2_num_steps: "); Serial.println(wheel2_num_steps);
