@@ -1,28 +1,25 @@
 
 #include "Arduino.h"
 
-void rotate(float relativeAngle, float angularVelocity);
-void moveDirectLine(float relativeDirection, float velocity, float distance);
-float velocityToPWMPeriod(float velocity_wheel1);
-void receiveSerialData();
-int parseCommand();
-void runCommand();
+#include "main.h"
+#include "parser.h"
+#include "configuration.h"
+#include "helper.h"
 
-// Macro for faster digital output
-#define SWT(x,y) (x^=(1<<y))
-
-#define RADIUS 0.12
+#define RADIUS 0.15
+#define REVS_PER_METER 4
+#define MOTOR_REVS_PER_WHEEL_REV 7 // grob
+#define DIST_PER_WHEEL_REV 0.25  //m
+#define MOTOR_REVS_PER_SECOND_BY_METERS_PER_SECOND 28 // grob
 
 // Motor 1
 #define dirPin1 4
 #define stepPin1 3
 #define enablePin1 2
-
 // Motor 2
 #define dirPin2 7
 #define stepPin2 6
 #define enablePin2 5
-
 // Motor 3
 #define dirPin3 10
 #define stepPin3 9
@@ -39,28 +36,6 @@ const float MAX_RPM = 7.8125;
 const float MAX_VELOCITY = 0.08; // [m/s]
 const float MIN_PERIOD = 20; // [µs]
 
-char serialString[100];
-int nextWritePosition = 0;
-boolean isNewFullCommand = false;
-char command;
-float parameters[3];
-
-volatile boolean wheel1_driving = false;
-volatile boolean wheel2_driving = false;
-volatile boolean wheel3_driving = false;
-
-volatile long wheel1_actual_duration;
-volatile long wheel2_actual_duration;
-volatile long wheel3_actual_duration;
-
-volatile long driving_duration1;
-volatile long driving_duration2;
-volatile long driving_duration3;
-
-// long wheel1_num_steps = 0;
-// long wheel2_num_steps = 0;
-// long wheel3_num_steps = 0;
-
 void setup() {
   Serial.begin(115200);
 
@@ -70,45 +45,27 @@ void setup() {
     pinMode(enablePins[i], OUTPUT);
     digitalWrite(enablePins[i], HIGH); // Disable motors until needed (LOW = ENABLED)
   }
-
-  cli();
-  TCCR0A = 0;
-  TCCR0B = 0;
-  TCCR0B |= B00000010; // 500ns per tick
-  TIMSK0 |= B00000010; // compare match A
-  OCR0A = 255;
-
-  TCCR1A = 0;
-  TCCR1B = 0;
-  TCCR1B |= B00000010; // 500ns per tick
-  TIMSK1 |= B00000010; // compare match A
-  OCR1A = 255;
-
-  TCCR2A = 0;
-  TCCR2B = 0;
-  TCCR2B |= B00000010; // 500ns per tick
-  TIMSK2 |= B00000010; // compare match A
-  OCR2A = 255;
-  sei();
 }
 
-void loop() {
-  receiveSerialData();
-  if (isNewFullCommand == true) {
-    if (parseCommand() >= 0)
-      runCommand();
-    else Serial.println("Could not parse the command");
-  }
-  delay(5);
-}
-
-void runCommand() {
-  switch(command) {
+void runCommand(Command command) {
+  switch(command.type) {
     case 'R':
-      rotate(parameters[0], parameters[1]);
+      rotate(command.parameters[0], command.parameters[1]);
       break;
     case 'D':
-      moveDirectLine(parameters[0], parameters[1], parameters[2]);
+      driveMotorsAccled(command.parameters[0], command.parameters[1], command.parameters[2], getAccelleration());
+      break;
+    case 's':
+      printVelocity();
+      break;
+    case 'a':
+      printAccelleration();
+      break;
+    case 'S':
+      setVelocity(command.parameters[0]);
+      break;
+    case 'A':
+      setAccelleration(command.parameters[0]);
       break;
   }
 }
@@ -123,69 +80,176 @@ void driveMotors(float spike_period1, float spike_period2, float spike_period3, 
   digitalWrite(dirPin2, spike_period2 < 0 ? LOW : HIGH );
   digitalWrite(dirPin3, spike_period3 < 0 ? LOW : HIGH );
 
-  float abs_spike_period1 = abs(spike_period1) * 2;
-  float abs_spike_period2 = abs(spike_period2) * 2;
-  float abs_spike_period3 = abs(spike_period3) * 2;
-
-  cli();
   for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], LOW);
-  //
-  // wheel1_num_steps = duration / abs(spike_period1);
-  // wheel2_num_steps = duration / abs(spike_period2);
-  // wheel3_num_steps = duration / abs(spike_period3);
 
-  driving_duration1 = duration;
-  driving_duration2 = duration;
-  driving_duration3 = duration;
-  //
-  // Serial.print("Wheel1_num_steps: "); Serial.println(wheel1_num_steps);
-  // Serial.print("Wheel2_num_steps: "); Serial.println(wheel2_num_steps);
-  // Serial.print("Wheel3_num_steps: "); Serial.println(wheel3_num_steps);
+  float abs_spike_period1 = abs(spike_period1);
+  float abs_spike_period2 = abs(spike_period2);
+  float abs_spike_period3 = abs(spike_period3);
 
-  if (abs_spike_period1 < 128) {
-    TCCR0B |= B00000010; // 8 scaler
-    OCR0A = lowByte((int) (abs_spike_period1));
-  } else if (abs_spike_period1 >= 128 && abs_spike_period1 < 4096) {
-    TCCR0B |= B00000100; // 256 scaler
-    OCR0A = lowByte((int) (abs_spike_period1) / 32);
-    driving_duration1 /= 32;
-  } else {
-    digitalWrite(enablePin1, HIGH);
+  long last_state_change1 = 0;
+  long last_state_change2 = 0;
+  long last_state_change3 = 0;
+
+  boolean state1 = false;
+  boolean state2 = false;
+  boolean state3 =false;
+
+  Serial.print("Duration: "); Serial.println(duration);
+
+  long steps1 = 0;
+  long steps2 = 0;
+  long steps3 = 0;
+
+  long t_0 = micros();
+  long loop_counter = 0;
+  while (micros() - t_0 < duration) {
+    if (micros() - last_state_change1 >= abs_spike_period1) {
+      steps1++;
+      state1 = !state1;
+      digitalWrite(stepPin1, state1);
+      last_state_change1 = micros();
+    }
+    if (micros() - last_state_change2 >= abs_spike_period2) {
+      steps2++;
+      state2 = !state2;
+      digitalWrite(stepPin2, state2);
+      last_state_change2 = micros();
+    }
+    if (micros() - last_state_change3 >= abs_spike_period3) {
+      steps3++;
+      state3 = !state3;
+      digitalWrite(stepPin3, state3);
+      last_state_change3 = micros();
+    }
+    loop_counter++;
   }
-  if (abs_spike_period2 < 128) {
-    TCCR1B |= B00000010; // 8 scaler
-    OCR1A = lowByte((int) (abs_spike_period2));
-  } else if (abs_spike_period2 >= 128 && abs_spike_period2 < 4096) {
-    TCCR1B |= B00000100; // 256 scaler
-    OCR1A = lowByte((int) (abs_spike_period2) / 32);
-    driving_duration2 /= 32;
-  } else {
-    digitalWrite(enablePin2, HIGH);
+
+  println("Mean loop time: ", duration * 1.0 / loop_counter);
+  println("Steps motor 1: ", steps1 / 2);
+  println("Steps motor 2: ", steps2 / 2);
+  println("Steps motor 3: ", steps3 / 2);
+
+  for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], HIGH);
+}
+
+void driveMotorsAccled(float direction, float distance, float velocity, float accelleration) {
+
+  if (velocity == 0) velocity = getVelocity();
+  if (accelleration == 0) accelleration = getAccelleration();
+
+  println("Using velocity: ", velocity);
+  println("Using accelleration: ", accelleration);
+
+  for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], LOW);
+
+  long last_state_change1 = 0;
+  long last_state_change2 = 0;
+  long last_state_change3 = 0;
+
+  boolean state1 = false;
+  boolean state2 = false;
+  boolean state3 = false;
+
+  long steps1 = 0;
+  long steps2 = 0;
+  long steps3 = 0;
+
+  float revs = REVS_PER_METER * distance;
+  long num_steps1 = abs(cos(2.61799 - direction)) * STEPS_PER_REV_WITH_MICRO_STEPPING * revs;
+  long num_steps2 = abs(cos(0.523599 - direction)) * STEPS_PER_REV_WITH_MICRO_STEPPING * revs;
+  long num_steps3 = abs(cos(4.71239 - direction)) * STEPS_PER_REV_WITH_MICRO_STEPPING * revs;
+
+  float wheel1_target_velocity = cos(2.61799 - direction) * velocity;
+  digitalWrite(dirPin1, wheel1_target_velocity > 0);
+  float wheel1_velocity = PWMPeriodToVelocity(1000);
+  float abs_spike_period1 = 1000;
+  float abs_wheel1_target_velocity = abs(wheel1_target_velocity);
+
+  float wheel2_target_velocity = cos(0.523599 - direction) * velocity;
+  digitalWrite(dirPin2, wheel2_target_velocity > 0);
+  float wheel2_velocity = PWMPeriodToVelocity(1000);
+  float abs_spike_period2 = 1000;
+  float abs_wheel2_target_velocity = abs(wheel2_target_velocity);
+
+  float wheel3_target_velocity = cos(4.71239 - direction) * velocity;
+  digitalWrite(dirPin3, wheel3_target_velocity > 0);
+  float wheel3_velocity = PWMPeriodToVelocity(1000);
+  float abs_spike_period3 = 1000;
+  float abs_wheel3_target_velocity = abs(wheel3_target_velocity);
+
+  println("Starting velocity1: ", wheel1_velocity);
+  println("Starting spike period1: ", abs_spike_period1);
+  println("Target velocity1: ", wheel1_target_velocity);
+  println("Starting velocity2: ", wheel2_velocity);
+  println("Starting spike period2: ", abs_spike_period2);
+  println("Target velocity2: ", wheel2_target_velocity);
+  println("Starting velocity3: ", wheel3_velocity);
+  println("Starting spike period3: ", abs_spike_period3);
+  println("Target velocity3: ", wheel3_target_velocity);
+
+  long loop_counter = 0;
+  long t_0 = millis();
+  while (steps1 < num_steps1) {
+
+    long time_since_last_change1 = micros() - last_state_change1;
+    if (time_since_last_change1 >= abs_spike_period1) {
+      steps1++;
+      state1 = !state1;
+      digitalWrite(stepPin1, state1);
+      last_state_change1 = micros() - (time_since_last_change1 - abs_spike_period1);
+
+      if (wheel1_velocity < abs_wheel1_target_velocity) {
+        wheel1_velocity += (accelleration * abs(cos(2.61799 - direction))) / (1000000 / abs_spike_period1);
+        if (wheel1_velocity > abs_wheel1_target_velocity) wheel1_velocity = abs_wheel1_target_velocity;
+        abs_spike_period1 = abs(velocityToPWMPeriod(wheel1_velocity));
+      }
+    }
+
+    long time_since_last_change2 = micros() - last_state_change2;
+    if (time_since_last_change2 >= abs_spike_period2) {
+      steps2++;
+      state2 = !state2;
+      digitalWrite(stepPin2, state2);
+      last_state_change2 = micros() - (time_since_last_change2 - abs_spike_period2);
+
+      if (wheel2_velocity < abs_wheel2_target_velocity) {
+        wheel2_velocity += (accelleration * abs(cos(2.61799 - direction))) / (1000000 / abs_spike_period2);
+        if (wheel2_velocity > abs_wheel2_target_velocity) wheel2_velocity = abs_wheel2_target_velocity;
+        abs_spike_period2 = abs(velocityToPWMPeriod(wheel2_velocity));
+      }
+    }
+
+    long time_since_last_change3 = micros() - last_state_change3;
+    if (time_since_last_change3 >= abs_spike_period3) {
+      steps3++;
+      state3 = !state3;
+      digitalWrite(stepPin3, state3);
+      last_state_change3 = micros() - (time_since_last_change3 - abs_spike_period3);
+
+      if (wheel3_velocity < abs_wheel3_target_velocity) {
+        wheel3_velocity += (accelleration * abs(cos(2.61799 - direction))) / (1000000 / abs_spike_period3);
+        if (wheel3_velocity > abs_wheel3_target_velocity) wheel3_velocity = abs_wheel3_target_velocity;
+        abs_spike_period3 = abs(velocityToPWMPeriod(wheel3_velocity));
+      }
+    }
+    loop_counter++;
   }
-  if (abs_spike_period3 < 128) {
-    TCCR2B |= B00000010; // 8 scaler
-    OCR2A = lowByte((int) (abs_spike_period3));
-  } else if (abs_spike_period3 >= 128 && abs_spike_period3 < 4096) {
-    TCCR2B |= B00000100; // 256 scaler
-    OCR2A = lowByte((int) (abs_spike_period3) / 32);
-    driving_duration3 /= 32;
-  } else {
-    digitalWrite(enablePin3, HIGH);
-  }
 
-  wheel1_driving = true;
-  wheel2_driving = true;
-  wheel3_driving = true;
+  long duration = millis() - t_0;
+  println("Duration: ", duration);
 
-  wheel1_actual_duration = 0;
-  wheel2_actual_duration = 0;
-  wheel3_actual_duration = 0;
+  println("Final velocity: ", wheel1_velocity);
+  println("Final spike period ", abs_spike_period1);
+  println("Mean loop duration: ", duration * 1000.0 / loop_counter);
 
-  sei();
+  println("steps 1: ", steps1);
+  println("Wanted steps: ", num_steps1);
+  println("steps 2: ", steps2);
+  println("Wanted steps: ", num_steps2);
+  println("steps 3: ", steps3);
+  println("Wanted steps: ", num_steps3);
 
-  Serial.println(OCR0A);
-  Serial.println(OCR1A);
-  Serial.println(OCR2A);
+  for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], HIGH);
 }
 
 /**
@@ -193,7 +257,10 @@ void driveMotors(float spike_period1, float spike_period2, float spike_period3, 
   @param relativeDirection: The relative radians angle towards which to move in a direct line
   @param distance:          How far the robot should move, in meters [m]
 */
-void moveDirectLine(float relativeDirection, float velocity, float distance) {
+void moveDirectLine(float relativeDirection, float distance, float velocity) {
+  if (velocity == 0)
+    velocity = getVelocity();
+
   float velocity_wheel1 = cos(2.61799 - relativeDirection) * velocity;   // 150°
   float velocity_wheel2 = cos(0.523599 - relativeDirection) * velocity;  //  30°
   float velocity_wheel3 = cos(4.71239 - relativeDirection) * velocity;   // 270°
@@ -202,18 +269,8 @@ void moveDirectLine(float relativeDirection, float velocity, float distance) {
   float period_wheel2 = velocityToPWMPeriod(velocity_wheel2);
   float period_wheel3 = velocityToPWMPeriod(velocity_wheel3);
 
-  Serial.print("wheel1 [µs]: ");
-  Serial.println(period_wheel1);
-  Serial.print("wheel2 [µs]: ");
-  Serial.println(period_wheel2);
-  Serial.print("wheel3 [µs]: ");
-  Serial.println(period_wheel3);
-
   Serial.println((distance / velocity) * 1000000);
   unsigned long duration = (unsigned long) (distance / velocity) * 1000000; // [µs]
-
-  // Serial.print("Duration [µs]: ");
-  // Serial.println(duration);
 
   driveMotors(period_wheel1, period_wheel2, period_wheel3, duration);
 }
@@ -233,75 +290,21 @@ void rotate(float relativeAngle, float angularVelocity) {
 */
 float velocityToPWMPeriod(float velocity_wheel) {
   if (velocity_wheel == 0) return 0;
-  else if (velocity_wheel < 0) return -(1 / (abs(velocity_wheel) / MAX_VELOCITY)) * MIN_PERIOD;
-  else return (1 / (velocity_wheel / MAX_VELOCITY)) * MIN_PERIOD;
+  else return 1000000 / (velocity_wheel * MOTOR_REVS_PER_SECOND_BY_METERS_PER_SECOND * STEPS_PER_REV_WITH_MICRO_STEPPING);
 }
 
-void receiveSerialData() {
-  while (Serial.available() > 0) {
-    char c = Serial.read();
-    if (c == '{') {
-      nextWritePosition = 0;
-      isNewFullCommand = false;
-    } else if (c == '}')
-      isNewFullCommand = true;
-    else {
-      if (nextWritePosition >= 100) {
-        Serial.println("Command too long!");
-        break;
-      }
-      serialString[nextWritePosition++] = c;
-    }
-  }
+float PWMPeriodToVelocity(float pwmPeriod) {
+  if (pwmPeriod == 0) return 0;
+  else return 1000000 / (pwmPeriod * MOTOR_REVS_PER_SECOND_BY_METERS_PER_SECOND * STEPS_PER_REV_WITH_MICRO_STEPPING);
 }
 
-int parseCommand() {
-  command = serialString[0];
-  if (command != 'D' && command != 'R') return -1;
-  strtok(serialString, ";"); // throw away
-
-  for (int i = 0; i < 3; i++) {
-    char *param = strtok(NULL, ";");
-    parameters[i] = atof(param);
+void loop() {
+  boolean fullCommandReceived = receiveSerialData();
+  if (fullCommandReceived) {
+    Command command = parseCommand();
+    if (command.valid)
+      runCommand(command);
+    else Serial.println("Could not parse the command");
   }
-
-  isNewFullCommand = false;
-  return 0;
-}
-
-// Interrupts:
-ISR(TIMER0_COMPA_vect){
-  if (wheel1_driving) {
-    wheel1_actual_duration += TCNT0;
-    TCNT0  = 0;
-    SWT(PORTD, 3);
-    if (wheel1_actual_duration >= driving_duration1) {
-      digitalWrite(enablePins[0], HIGH);
-      wheel1_driving = false;
-    }
-  }
-}
-
-ISR(TIMER1_COMPA_vect){
-  if (wheel2_driving) {
-    wheel2_actual_duration += TCNT1;
-    TCNT1  = 0;
-    SWT(PORTD, 6);
-    if (wheel2_actual_duration >= driving_duration2) {
-      digitalWrite(enablePins[1], HIGH);
-      wheel2_driving = false;
-    }
-  }
-}
-
-ISR(TIMER2_COMPA_vect){
-  if (wheel3_driving) {
-    wheel3_actual_duration += TCNT2;
-    TCNT2  = 0;
-    SWT(PORTB, 1);
-    if (wheel3_actual_duration >= driving_duration3) {
-      digitalWrite(enablePins[2], HIGH);
-      wheel3_driving = false;
-    }
-  }
+  delay(5);
 }
