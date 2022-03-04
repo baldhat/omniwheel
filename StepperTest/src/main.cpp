@@ -36,6 +36,8 @@ const float MAX_RPM = 7.8125;
 const float MAX_VELOCITY = 0.08; // [m/s]
 const float MIN_PERIOD = 20; // [µs]
 
+byte diffs[100000];
+
 void setup() {
   Serial.begin(115200);
 
@@ -44,6 +46,7 @@ void setup() {
     pinMode(stepPins[i], OUTPUT);
     pinMode(enablePins[i], OUTPUT);
     digitalWrite(enablePins[i], HIGH); // Disable motors until needed (LOW = ENABLED)
+    digitalWrite(stepPins[i], LOW);
   }
 }
 
@@ -70,75 +73,13 @@ void runCommand(Command command) {
   }
 }
 
-/**
-  Drive each motor by sending the specified spike_periods until `duration` has passed.
-  @param spike_period[1-3]:     A float specifiying HALF the time between two HIGHs sent to the corresponding motor, in microseconds [µs]
-  @param duration:              An unsigned long specifying the duration of the spike pulses, in microseconds [µs]
-*/
-void driveMotors(float spike_period1, float spike_period2, float spike_period3, unsigned long duration) {
-  digitalWrite(dirPin1, spike_period1 < 0 ? LOW : HIGH );
-  digitalWrite(dirPin2, spike_period2 < 0 ? LOW : HIGH );
-  digitalWrite(dirPin3, spike_period3 < 0 ? LOW : HIGH );
-
-  for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], LOW);
-
-  float abs_spike_period1 = abs(spike_period1);
-  float abs_spike_period2 = abs(spike_period2);
-  float abs_spike_period3 = abs(spike_period3);
-
-  long last_state_change1 = 0;
-  long last_state_change2 = 0;
-  long last_state_change3 = 0;
-
-  boolean state1 = false;
-  boolean state2 = false;
-  boolean state3 =false;
-
-  Serial.print("Duration: "); Serial.println(duration);
-
-  long steps1 = 0;
-  long steps2 = 0;
-  long steps3 = 0;
-
-  long t_0 = micros();
-  long loop_counter = 0;
-  while (micros() - t_0 < duration) {
-    if (micros() - last_state_change1 >= abs_spike_period1) {
-      steps1++;
-      state1 = !state1;
-      digitalWrite(stepPin1, state1);
-      last_state_change1 = micros();
-    }
-    if (micros() - last_state_change2 >= abs_spike_period2) {
-      steps2++;
-      state2 = !state2;
-      digitalWrite(stepPin2, state2);
-      last_state_change2 = micros();
-    }
-    if (micros() - last_state_change3 >= abs_spike_period3) {
-      steps3++;
-      state3 = !state3;
-      digitalWrite(stepPin3, state3);
-      last_state_change3 = micros();
-    }
-    loop_counter++;
-  }
-
-  println("Mean loop time: ", duration * 1.0 / loop_counter);
-  println("Steps motor 1: ", steps1 / 2);
-  println("Steps motor 2: ", steps2 / 2);
-  println("Steps motor 3: ", steps3 / 2);
-
-  for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], HIGH);
-}
-
-void driveMotorsAccled(float direction, float distance, float velocity, float accelleration) {
+void driveDirectLine(float direction, float distance, float velocity, float accelleration) {
 
   if (velocity == 0) velocity = getVelocity();
   if (accelleration == 0) accelleration = getAccelleration();
-
-  println("Using velocity: ", velocity);
-  println("Using accelleration: ", accelleration);
+  //
+  // println("Using velocity: ", velocity);
+  // println("Using accelleration: ", accelleration);
 
   for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], LOW);
 
@@ -146,46 +87,46 @@ void driveMotorsAccled(float direction, float distance, float velocity, float ac
   long last_state_change2 = 0;
   long last_state_change3 = 0;
 
-  boolean state1 = false;
-  boolean state2 = false;
-  boolean state3 = false;
-
   long steps1 = 0;
   long steps2 = 0;
   long steps3 = 0;
 
-  float revs = REVS_PER_METER * distance;
-  long num_steps1 = abs(cos(2.61799 - direction)) * STEPS_PER_REV_WITH_MICRO_STEPPING * revs;
-  long num_steps2 = abs(cos(0.523599 - direction)) * STEPS_PER_REV_WITH_MICRO_STEPPING * revs;
-  long num_steps3 = abs(cos(4.71239 - direction)) * STEPS_PER_REV_WITH_MICRO_STEPPING * revs;
+  float revs = REVS_PER_METER * MOTOR_REVS_PER_WHEEL_REV * distance;
+  long num_steps1 = abs(cos(2.61799 - direction)) * STEPS_PER_REV_WITH_MICRO_STEPPING * revs * 2;
+  long num_steps2 = abs(cos(0.523599 - direction)) * STEPS_PER_REV_WITH_MICRO_STEPPING * revs * 2;
+  long num_steps3 = abs(cos(4.71239 - direction)) * STEPS_PER_REV_WITH_MICRO_STEPPING * revs * 2;
 
   float wheel1_target_velocity = cos(2.61799 - direction) * velocity;
-  digitalWrite(dirPin1, wheel1_target_velocity > 0);
-  float wheel1_velocity = PWMPeriodToVelocity(1000);
-  float abs_spike_period1 = 1000;
   float abs_wheel1_target_velocity = abs(wheel1_target_velocity);
+  digitalWrite(dirPin1, wheel1_target_velocity > 0);
+  float wheel1_velocity = 0.001;
+  float abs_spike_period1 = velocityToPWMPeriod(wheel1_velocity) / 2;
 
   float wheel2_target_velocity = cos(0.523599 - direction) * velocity;
-  digitalWrite(dirPin2, wheel2_target_velocity > 0);
-  float wheel2_velocity = PWMPeriodToVelocity(1000);
-  float abs_spike_period2 = 1000;
   float abs_wheel2_target_velocity = abs(wheel2_target_velocity);
+  digitalWrite(dirPin2, wheel2_target_velocity > 0);
+  float wheel2_velocity = 0.001;
+  float abs_spike_period2 = velocityToPWMPeriod(wheel2_velocity) / 2;
 
   float wheel3_target_velocity = cos(4.71239 - direction) * velocity;
-  digitalWrite(dirPin3, wheel3_target_velocity > 0);
-  float wheel3_velocity = PWMPeriodToVelocity(1000);
-  float abs_spike_period3 = 1000;
   float abs_wheel3_target_velocity = abs(wheel3_target_velocity);
+  digitalWrite(dirPin3, wheel3_target_velocity > 0);
+  float wheel3_velocity = 0.001;
+  float abs_spike_period3 = velocityToPWMPeriod(wheel3_velocity) / 2;
 
-  println("Starting velocity1: ", wheel1_velocity);
-  println("Starting spike period1: ", abs_spike_period1);
-  println("Target velocity1: ", wheel1_target_velocity);
-  println("Starting velocity2: ", wheel2_velocity);
-  println("Starting spike period2: ", abs_spike_period2);
-  println("Target velocity2: ", wheel2_target_velocity);
-  println("Starting velocity3: ", wheel3_velocity);
-  println("Starting spike period3: ", abs_spike_period3);
-  println("Target velocity3: ", wheel3_target_velocity);
+  long ramp_down_begin_step1 = -1;
+  long ramp_down_begin_step2 = -1;
+  long ramp_down_begin_step3 = -1;
+
+  // println("Starting velocity1: ", wheel1_velocity);
+  // println("Starting spike period1: ", abs_spike_period1);
+  // println("Target velocity1: ", abs_wheel1_target_velocity);
+  // println("Starting velocity2: ", wheel2_velocity);
+  // println("Starting spike period2: ", abs_spike_period2);
+  // println("Target velocity2: ", abs_wheel2_target_velocity);
+  // println("Starting velocity3: ", wheel3_velocity);
+  // println("Starting spike period3: ", abs_spike_period3);
+  // println("Target velocity3: ", abs_wheel3_target_velocity);
 
   long loop_counter = 0;
   long t_0 = millis();
@@ -194,85 +135,90 @@ void driveMotorsAccled(float direction, float distance, float velocity, float ac
     long time_since_last_change1 = micros() - last_state_change1;
     if (time_since_last_change1 >= abs_spike_period1) {
       steps1++;
-      state1 = !state1;
-      digitalWrite(stepPin1, state1);
-      last_state_change1 = micros() - (time_since_last_change1 - abs_spike_period1);
+      GPIOA_PDOR ^= 1 << 12; // A12 = 3
+      last_state_change1 = micros();
 
-      if (wheel1_velocity < abs_wheel1_target_velocity) {
+      if (ramp_down_begin_step1 == steps1 || (ramp_down_begin_step1 == -1 && steps1 == num_steps1 / 2))
+        abs_wheel1_target_velocity = 0.0;
+
+      if (wheel1_velocity < abs_wheel1_target_velocity && abs_spike_period1 != 0) {
         wheel1_velocity += (accelleration * abs(cos(2.61799 - direction))) / (1000000 / abs_spike_period1);
-        if (wheel1_velocity > abs_wheel1_target_velocity) wheel1_velocity = abs_wheel1_target_velocity;
-        abs_spike_period1 = abs(velocityToPWMPeriod(wheel1_velocity));
+        if (wheel1_velocity > abs_wheel1_target_velocity) {
+          wheel1_velocity = abs_wheel1_target_velocity;
+          ramp_down_begin_step1 = num_steps1 - steps1; // We have reach cruising speed, it will take just as many steps to decellerate
+        }
+        abs_spike_period1 = abs(velocityToPWMPeriod(wheel1_velocity)) / 2;
+      } else if (wheel1_velocity > abs_wheel1_target_velocity) {
+        wheel1_velocity -= (accelleration * abs(cos(2.61799 - direction))) / (1000000 / abs_spike_period1);
+        if (wheel1_velocity < abs_wheel1_target_velocity) wheel1_velocity = abs_wheel1_target_velocity;
+        abs_spike_period1 = abs(velocityToPWMPeriod(wheel1_velocity)) / 2;
       }
     }
 
     long time_since_last_change2 = micros() - last_state_change2;
-    if (time_since_last_change2 >= abs_spike_period2) {
+    if (time_since_last_change2 >= abs_spike_period2 && abs_spike_period2 != 0) {
       steps2++;
-      state2 = !state2;
-      digitalWrite(stepPin2, state2);
-      last_state_change2 = micros() - (time_since_last_change2 - abs_spike_period2);
+      GPIOD_PDOR ^= 1 << 4; // D4 = 6
+      last_state_change2 = micros();
+
+      if (ramp_down_begin_step2 == steps2 || (ramp_down_begin_step2 == -1 && steps2 == num_steps2 / 2))
+          abs_wheel2_target_velocity = 0.0;
 
       if (wheel2_velocity < abs_wheel2_target_velocity) {
-        wheel2_velocity += (accelleration * abs(cos(2.61799 - direction))) / (1000000 / abs_spike_period2);
-        if (wheel2_velocity > abs_wheel2_target_velocity) wheel2_velocity = abs_wheel2_target_velocity;
-        abs_spike_period2 = abs(velocityToPWMPeriod(wheel2_velocity));
+        wheel2_velocity += (accelleration * abs(cos(0.523599 - direction))) / (1000000 / abs_spike_period2);
+        if (wheel2_velocity > abs_wheel2_target_velocity) {
+          wheel2_velocity = abs_wheel2_target_velocity;
+          ramp_down_begin_step2 = num_steps2 - steps2; // We have reach cruising speed, it will take just as many steps to decellerate
+        }
+        abs_spike_period2 = abs(velocityToPWMPeriod(wheel2_velocity)) / 2;
+      } else if (wheel2_velocity > abs_wheel2_target_velocity) {
+        wheel2_velocity -= (accelleration * abs(cos(0.523599 - direction))) / (1000000 / abs_spike_period2);
+        if (wheel2_velocity < abs_wheel2_target_velocity) wheel2_velocity = abs_wheel2_target_velocity;
+        abs_spike_period2 = abs(velocityToPWMPeriod(wheel2_velocity)) / 2;
       }
     }
 
     long time_since_last_change3 = micros() - last_state_change3;
-    if (time_since_last_change3 >= abs_spike_period3) {
+    if (time_since_last_change3 >= abs_spike_period3 && abs_spike_period3 != 0) {
       steps3++;
-      state3 = !state3;
-      digitalWrite(stepPin3, state3);
-      last_state_change3 = micros() - (time_since_last_change3 - abs_spike_period3);
+      GPIOC_PDOR ^= 1 << 3; // C3 = 9
+      last_state_change3 = micros();
+
+      if (ramp_down_begin_step3 == steps3 || (ramp_down_begin_step3 == -1 && steps3 == num_steps3 / 2))
+          abs_wheel3_target_velocity = 0.0;
 
       if (wheel3_velocity < abs_wheel3_target_velocity) {
-        wheel3_velocity += (accelleration * abs(cos(2.61799 - direction))) / (1000000 / abs_spike_period3);
-        if (wheel3_velocity > abs_wheel3_target_velocity) wheel3_velocity = abs_wheel3_target_velocity;
-        abs_spike_period3 = abs(velocityToPWMPeriod(wheel3_velocity));
+        wheel3_velocity += (accelleration * abs(cos(4.71239 - direction))) / (1000000 / abs_spike_period3);
+        if (wheel3_velocity > abs_wheel3_target_velocity) {
+          wheel3_velocity = abs_wheel3_target_velocity;
+          ramp_down_begin_step3 = num_steps3 - steps3; // We have reach cruising speed, it will take just as many steps to decellerate
+        }
+        abs_spike_period3 = abs(velocityToPWMPeriod(wheel3_velocity)) / 2;
+      } else if (wheel3_velocity > abs_wheel3_target_velocity) {
+        wheel3_velocity -= (accelleration * abs(cos(4.71239 - direction))) / (1000000 / abs_spike_period3);
+        if (wheel3_velocity < abs_wheel3_target_velocity) wheel3_velocity = abs_wheel3_target_velocity;
+        abs_spike_period3 = abs(velocityToPWMPeriod(wheel3_velocity)) / 2;
       }
     }
     loop_counter++;
   }
 
-  long duration = millis() - t_0;
-  println("Duration: ", duration);
-
-  println("Final velocity: ", wheel1_velocity);
-  println("Final spike period ", abs_spike_period1);
-  println("Mean loop duration: ", duration * 1000.0 / loop_counter);
-
-  println("steps 1: ", steps1);
-  println("Wanted steps: ", num_steps1);
-  println("steps 2: ", steps2);
-  println("Wanted steps: ", num_steps2);
-  println("steps 3: ", steps3);
-  println("Wanted steps: ", num_steps3);
+  // long duration = millis() - t_0;
+  // println("Duration: ", duration);
+  //
+  // println("Final velocity1: ", wheel1_velocity);
+  // println("Final velocity2: ", wheel2_velocity);
+  // println("Final velocity3: ", wheel3_velocity);
+  // println("Mean loop duration: ", duration * 1000.0 / loop_counter);
+  //
+  // println("steps 1: ", steps1);
+  // println("Wanted steps: ", num_steps1);
+  // println("steps 2: ", steps2);
+  // println("Wanted steps: ", num_steps2);
+  // println("steps 3: ", steps3);
+  // println("Wanted steps: ", num_steps3);
 
   for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], HIGH);
-}
-
-/**
-  Move in a direct line towards the given direction.
-  @param relativeDirection: The relative radians angle towards which to move in a direct line
-  @param distance:          How far the robot should move, in meters [m]
-*/
-void moveDirectLine(float relativeDirection, float distance, float velocity) {
-  if (velocity == 0)
-    velocity = getVelocity();
-
-  float velocity_wheel1 = cos(2.61799 - relativeDirection) * velocity;   // 150°
-  float velocity_wheel2 = cos(0.523599 - relativeDirection) * velocity;  //  30°
-  float velocity_wheel3 = cos(4.71239 - relativeDirection) * velocity;   // 270°
-
-  float period_wheel1 = velocityToPWMPeriod(velocity_wheel1);
-  float period_wheel2 = velocityToPWMPeriod(velocity_wheel2);
-  float period_wheel3 = velocityToPWMPeriod(velocity_wheel3);
-
-  Serial.println((distance / velocity) * 1000000);
-  unsigned long duration = (unsigned long) (distance / velocity) * 1000000; // [µs]
-
-  driveMotors(period_wheel1, period_wheel2, period_wheel3, duration);
 }
 
 void rotate(float relativeAngle, float angularVelocity) {
@@ -282,7 +228,7 @@ void rotate(float relativeAngle, float angularVelocity) {
 
   unsigned long duration = (unsigned long) (abs(relativeAngle) / angularVelocity) * 1000000; // [µs]
 
-  driveMotors(period, period, period, duration);
+  //driveMotors(period, period, period, duration);
 }
 
 /**
