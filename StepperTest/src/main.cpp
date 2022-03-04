@@ -30,7 +30,7 @@ int enablePins[] = {enablePin1, enablePin2, enablePin3};
 int stepPins[] = {stepPin1, stepPin2, stepPin3};
 
 const int STEPS_PER_REVOLUTION = 200;
-const int MICRO_STEPS = 32;
+const int MICRO_STEPS = 16;
 const int STEPS_PER_REV_WITH_MICRO_STEPPING = STEPS_PER_REVOLUTION * MICRO_STEPS;
 const float MAX_RPM = 7.8125;
 const float MAX_VELOCITY = 0.08; // [m/s]
@@ -56,7 +56,7 @@ void runCommand(Command command) {
       rotate(command.parameters[0], command.parameters[1]);
       break;
     case 'D':
-      driveMotorsAccled(command.parameters[0], command.parameters[1], command.parameters[2], getAccelleration());
+      driveDirectLine(command.parameters[0], command.parameters[1], command.parameters[2], getAccelleration());
       break;
     case 's':
       printVelocity();
@@ -203,20 +203,20 @@ void driveDirectLine(float direction, float distance, float velocity, float acce
     loop_counter++;
   }
 
-  // long duration = millis() - t_0;
+  long duration = millis() - t_0;
   // println("Duration: ", duration);
   //
   // println("Final velocity1: ", wheel1_velocity);
   // println("Final velocity2: ", wheel2_velocity);
   // println("Final velocity3: ", wheel3_velocity);
-  // println("Mean loop duration: ", duration * 1000.0 / loop_counter);
-  //
-  // println("steps 1: ", steps1);
-  // println("Wanted steps: ", num_steps1);
-  // println("steps 2: ", steps2);
-  // println("Wanted steps: ", num_steps2);
-  // println("steps 3: ", steps3);
-  // println("Wanted steps: ", num_steps3);
+  println("Mean loop duration: ", duration * 1000.0 / loop_counter);
+  
+  println("steps 1: ", steps1);
+  println("Wanted steps: ", num_steps1);
+  println("steps 2: ", steps2);
+  println("Wanted steps: ", num_steps2);
+  println("steps 3: ", steps3);
+  println("Wanted steps: ", num_steps3);
 
   for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], HIGH);
 }
