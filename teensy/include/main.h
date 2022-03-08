@@ -10,5 +10,8 @@ void runCommand(Command command);
 float PWMPeriodToVelocity(float pwmPeriod);
 void driveDirectLine(float direction, float distance, float velocity, float accelleration);
 void setMicrostepPins(int micro_steps);
+void interactiveDriving();
+void runInteractiveCommand(Command command);
+void update(Command command);
 
 #endif

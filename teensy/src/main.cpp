@@ -39,13 +39,25 @@ float default_velocity;
 float default_accelleration;
 int steps_per_rev_with_micro_stepping;
 
+boolean interactiveModeEnabled;
+
+float velocity_wheel1;
+float target_velocity_wheel1;
+float velocity_wheel2;
+float target_velocity_wheel2;
+float velocity_wheel3;
+float target_velocity_wheel3;
+float direction;
+float velocity;
+float angularVelocity;
+
 const int STEPS_PER_REVOLUTION = 200;
 const float MAX_RPM = 7.8125;
 const float MAX_VELOCITY = 0.08; // [m/s]
 const float MIN_PERIOD = 20; // [µs]
 
 void setup() {
-  Serial.begin(2000000);
+  Serial.begin(4000000);
 
   pinMode(MS1, OUTPUT);
   pinMode(MS2, OUTPUT);
@@ -97,7 +109,158 @@ void runCommand(Command command) {
       break;
     case 'm':
       println(getMicrosteps());
+      break;
+    case 'I':
+      interactiveDriving();
+      break;
   }
+}
+
+void runInteractiveCommand(Command command) {
+  switch (command.type) {
+    case 'I':
+      update(command); break;
+    case 'E':
+      interactiveModeEnabled = false;
+      break;
+  }
+}
+
+void update(Command command) {
+  direction = command.parameters[0];
+  velocity = command.parameters[1];
+  angularVelocity = command.parameters[2];
+
+  target_velocity_wheel1 = cos(2.61799 - direction) * velocity;
+  target_velocity_wheel2 = cos(0.523599 - direction) * velocity;
+  target_velocity_wheel3 = cos(4.71239 - direction) * velocity;
+
+  println("Current velocity wheel 2: ", velocity_wheel2);
+}
+
+void handleSerial() {
+  if (Serial.available() > 0) {
+    long t_0 = micros();
+    boolean fullCommandReceived = receiveSerialData();
+    if (fullCommandReceived) {
+      Command command = parseCommand();
+      if (command.valid)
+        runInteractiveCommand(command);
+      else Serial.println("Could not parse the command");
+    }
+
+  }
+}
+
+void interactiveDriving() {
+  Serial.println("Entered interactive mode");
+  for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], LOW);
+
+  interactiveModeEnabled = true;
+
+  long last_state_change1 = 0;
+  velocity_wheel1 = 0.001;
+  float abs_spike_period_wheel1 = velocityToPWMPeriod(velocity_wheel1) / 2;
+
+  long last_state_change2 = 0;
+  velocity_wheel2 = 0.001;
+  float abs_spike_period_wheel2 = velocityToPWMPeriod(velocity_wheel2) / 2;
+
+  long last_state_change3 = 0;
+  velocity_wheel3 = 0.001;
+  float abs_spike_period_wheel3 = velocityToPWMPeriod(velocity_wheel3) / 2;
+
+  long t_0 = micros();
+  unsigned long loop_counter = 0;
+  while (interactiveModeEnabled) {
+    handleSerial();
+    loop_counter++;
+
+    long time_since_last_change1 = micros() - last_state_change1;
+    if (time_since_last_change1 >= abs_spike_period_wheel1) {
+      if (velocity_wheel1 != 0) {
+        GPIOA_PDOR ^= 1 << 12; // A12 = Pin 3
+        last_state_change1 = micros();
+      }
+
+      if (velocity_wheel1 < target_velocity_wheel1) {
+        float change = (default_accelleration * abs(cos(2.61799 - direction))) / (1000000 / abs_spike_period_wheel1);
+        if (change < 0.000001) change = 0.000001;
+        velocity_wheel1 += change;
+        if (velocity_wheel1 > target_velocity_wheel1) {
+          velocity_wheel1 = target_velocity_wheel1;
+        }
+        abs_spike_period_wheel1 = abs(velocityToPWMPeriod(velocity_wheel1)) / 2;
+      } else if (velocity_wheel1 > target_velocity_wheel1) {
+        float change = (default_accelleration * abs(cos(2.61799 - direction))) / (1000000 / abs_spike_period_wheel1);
+        if (change < 0.000001) change = 0.000001;
+        velocity_wheel1 -= change;
+        if (velocity_wheel1 < target_velocity_wheel1) velocity_wheel1 = target_velocity_wheel1;
+        abs_spike_period_wheel1 = abs(velocityToPWMPeriod(velocity_wheel1)) / 2;
+      }
+
+      if (velocity_wheel1 > 0) GPIOA_PDOR |= 1 << 13; // A13 = Pin 4
+      else GPIOA_PDOR &= ~(1 << 13); // A13 = Pin 4
+    }
+
+    long time_since_last_change2 = micros() - last_state_change2;
+    if (time_since_last_change2 >= abs_spike_period_wheel2) {
+      if (velocity_wheel2 != 0) {
+        GPIOD_PDOR ^= 1 << 4;
+        last_state_change2 = micros();
+      }
+
+      if (velocity_wheel2 < target_velocity_wheel2) {
+        float change = (default_accelleration * abs(cos(2.61799 - direction))) / (1000000 / abs_spike_period_wheel2);
+        if (change < 0.000001) change = 0.000001;
+        velocity_wheel2 += change;
+        if (velocity_wheel2 > target_velocity_wheel2) {
+          velocity_wheel2 = target_velocity_wheel2;
+        }
+        abs_spike_period_wheel2 = abs(velocityToPWMPeriod(velocity_wheel2)) / 2;
+      } else if (velocity_wheel2 > target_velocity_wheel2) {
+        float change = (default_accelleration * abs(cos(2.61799 - direction))) / (1000000 / abs_spike_period_wheel2);
+        if (change < 0.000001) change = 0.000001;
+        velocity_wheel2 -= change;
+        if (velocity_wheel2 < target_velocity_wheel2) velocity_wheel2 = target_velocity_wheel2;
+        abs_spike_period_wheel2 = abs(velocityToPWMPeriod(velocity_wheel2)) / 2;
+      }
+
+      if (velocity_wheel2 > 0) GPIOD_PDOR |= 1 << 2;
+      else GPIOD_PDOR &= ~(1 << 2);
+    }
+
+    long time_since_last_change3 = micros() - last_state_change3;
+    if (time_since_last_change3 >= abs_spike_period_wheel3) {
+      if (velocity_wheel3 != 0) {
+        GPIOC_PDOR ^= 1 << 3;
+        last_state_change3 = micros();
+      }
+
+      if (velocity_wheel3 < target_velocity_wheel3) {
+        float change = (default_accelleration * abs(cos(2.61799 - direction))) / (1000000 / abs_spike_period_wheel3);
+        if (change < 0.000001) change = 0.000001;
+        velocity_wheel3 += change;
+        if (velocity_wheel3 > target_velocity_wheel3) {
+          velocity_wheel3 = target_velocity_wheel3;
+        }
+        abs_spike_period_wheel3 = abs(velocityToPWMPeriod(velocity_wheel3)) / 2;
+      } else if (velocity_wheel3 > target_velocity_wheel3) {
+        float change = (default_accelleration * abs(cos(2.61799 - direction))) / (1000000 / abs_spike_period_wheel3);
+        if (change < 0.000001) change = 0.000001;
+        velocity_wheel3 -= change;
+        if (velocity_wheel3 < target_velocity_wheel3) velocity_wheel3 = target_velocity_wheel3;
+        abs_spike_period_wheel3 = abs(velocityToPWMPeriod(velocity_wheel3)) / 2;
+      }
+
+      if (velocity_wheel3 > 0) GPIOC_PDOR |= 1 << 4;
+      else GPIOC_PDOR &= ~(1 << 4);
+    }
+  }
+
+  println("mean loop time: ", (micros() - t_0 * 1.0) / loop_counter);
+
+  for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], HIGH);
 }
 
 void driveDirectLine(float direction, float distance, float velocity, float accelleration) {
@@ -125,19 +288,20 @@ void driveDirectLine(float direction, float distance, float velocity, float acce
 
   float wheel1_target_velocity = cos(2.61799 - direction) * velocity;
   float abs_wheel1_target_velocity = abs(wheel1_target_velocity);
-  digitalWrite(dirPin1, wheel1_target_velocity > 0);
+  //digitalWrite(dirPin1, wheel1_target_velocity > 0);
+  GPIOA_PDOR |= (wheel1_target_velocity > 0) << 13; // A13 = 4
   float wheel1_velocity = 0.001;
   float abs_spike_period1 = velocityToPWMPeriod(wheel1_velocity) / 2;
 
   float wheel2_target_velocity = cos(0.523599 - direction) * velocity;
   float abs_wheel2_target_velocity = abs(wheel2_target_velocity);
-  digitalWrite(dirPin2, wheel2_target_velocity > 0);
+  GPIOD_PDOR |= (wheel1_target_velocity > 0) << 2; // D2 = 4
   float wheel2_velocity = 0.001;
   float abs_spike_period2 = velocityToPWMPeriod(wheel2_velocity) / 2;
 
   float wheel3_target_velocity = cos(4.71239 - direction) * velocity;
   float abs_wheel3_target_velocity = abs(wheel3_target_velocity);
-  digitalWrite(dirPin3, wheel3_target_velocity > 0);
+  GPIOC_PDOR |= (wheel1_target_velocity > 0) << 4; // C4 = 4
   float wheel3_velocity = 0.001;
   float abs_spike_period3 = velocityToPWMPeriod(wheel3_velocity) / 2;
 
