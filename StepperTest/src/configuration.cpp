@@ -5,18 +5,7 @@
 
 #define VELO_ADDR 0
 #define ACCL_ADDR 4
-
-void printVelocity() {
-  float velocity;
-  EEPROM.get(VELO_ADDR, velocity);
-  Serial.println(velocity);
-}
-
-void printAccelleration() {
-  float accelleration;
-  EEPROM.get(ACCL_ADDR, accelleration);
-  Serial.println(accelleration);
-}
+#define STEP_ADDR 8
 
 float getAccelleration() {
   float accelleration;
@@ -36,4 +25,14 @@ void setVelocity(float velocity) {
 
 void setAccelleration(float accelleration) {
   EEPROM.put(ACCL_ADDR, accelleration);
+}
+
+void setMicrosteps(int micro_steps) {
+  EEPROM.put(STEP_ADDR, micro_steps);
+}
+
+int getMicrosteps() {
+  int micro_steps;
+  EEPROM.get(STEP_ADDR, micro_steps);
+  return micro_steps;
 }
