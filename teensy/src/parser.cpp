@@ -4,7 +4,7 @@
 
 #define NUM_VALID_COMMANDS 10
 
-char serialString[100];
+char serialString[50];
 int nextWritePosition = 0;
 boolean isNewFullCommand = false;
 char validCommands[NUM_VALID_COMMANDS + 1] = "RDAaSsMmIE";
@@ -18,7 +18,7 @@ boolean receiveSerialData() {
     } else if (c == '}')
       isNewFullCommand = true;
     else {
-      if (nextWritePosition >= 100) {
+      if (nextWritePosition >= 50) {
         Serial.println("Command too long!");
         break;
       }
@@ -40,12 +40,12 @@ Command parseCommand() {
   command.type = serialString[0];
   if (!isValidCommand(command.type)) {
     command.valid = false;
-    return;
+    return command;
   }
   strtok(serialString, ";"); // throw away
 
   for (int i = 0; i < 3; i++) {
-    char *param = strtok(NULL, ";");
+    char *param = strtok(NULL, ";}");
     command.parameters[i] = atof(param);
   }
 

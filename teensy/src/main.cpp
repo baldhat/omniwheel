@@ -29,6 +29,7 @@
 #define MS1 26
 #define MS2 25
 #define MS3 24
+#define LED 27
 
 int dirPins[] = {dirPin1, dirPin2, dirPin3};
 int enablePins[] = {enablePin1, enablePin2, enablePin3};
@@ -47,9 +48,6 @@ float velocity_wheel2;
 float target_velocity_wheel2;
 float velocity_wheel3;
 float target_velocity_wheel3;
-float direction;
-float velocity;
-float angularVelocity;
 
 float acc_wheel1;
 float acc_wheel2;
@@ -66,6 +64,7 @@ void setup() {
   pinMode(MS1, OUTPUT);
   pinMode(MS2, OUTPUT);
   pinMode(MS3, OUTPUT);
+  pinMode(LED, OUTPUT);
 
   for (int i = 0; i < 3; i++) {
     pinMode(dirPins[i], OUTPUT);
@@ -81,6 +80,7 @@ void setup() {
   default_accelleration = getAccelleration();
   steps_per_rev_with_micro_stepping = STEPS_PER_REVOLUTION * micro_steps;
   setMicrostepPins(micro_steps);
+
 }
 
 void runCommand(Command command) {
@@ -131,32 +131,39 @@ void runInteractiveCommand(Command command) {
 }
 
 void update(Command command) {
-  direction = command.parameters[0];
-  velocity = command.parameters[1] * default_velocity * 0.7;
-  angularVelocity = command.parameters[2] * default_velocity * 0.3 * 5; // 5 ist random
+  float velocityParam = command.parameters[1];
+  float angularVelocityParam = command.parameters[2];
 
-  float rotation_velocity = RADIUS * angularVelocity;
+  if (velocityParam > 1) velocityParam = 1;
+  if (velocityParam < -1) velocityParam = -1;
+  if (angularVelocityParam > 1) angularVelocityParam = 1;
+  if (angularVelocityParam < -1) angularVelocityParam = -1;
 
-  target_velocity_wheel1 = cos(2.61799 - direction) * velocity + rotation_velocity;
-  target_velocity_wheel2 = cos(0.523599 - direction) * velocity + rotation_velocity;
-  target_velocity_wheel3 = cos(4.71239 - direction) * velocity + rotation_velocity;
+  float direction = command.parameters[0];
+  float velocity = velocityParam * default_velocity * 0.7;
+  float angularVelocity = angularVelocityParam * default_velocity * 0.3;
+
+  target_velocity_wheel1 = cos(2.61799 - direction) * velocity + angularVelocity;
+  target_velocity_wheel2 = cos(0.523599 - direction) * velocity + angularVelocity;
+  target_velocity_wheel3 = cos(4.71239 - direction) * velocity + angularVelocity;
 
   float delta_v_wheel1 = abs(target_velocity_wheel1 - velocity_wheel1);
   float delta_v_wheel2 = abs(target_velocity_wheel2 - velocity_wheel2);
   float delta_v_wheel3 = abs(target_velocity_wheel3 - velocity_wheel3);
 
-  if (delta_v_wheel1 >= delta_v_wheel2 && delta_v_wheel1 >= delta_v_wheel3) {
-    acc_wheel1 = default_accelleration;
+  acc_wheel1 = default_accelleration;
+  acc_wheel2 = default_accelleration;
+  acc_wheel3 = default_accelleration;
+
+  if (delta_v_wheel1 != 0 && delta_v_wheel1 >= delta_v_wheel2 && delta_v_wheel1 >= delta_v_wheel3) {
     acc_wheel2 = default_accelleration * (delta_v_wheel2 / delta_v_wheel1);
     acc_wheel3 = default_accelleration * (delta_v_wheel3 / delta_v_wheel1);
-  } else if (delta_v_wheel2 >= delta_v_wheel1 && delta_v_wheel1 >= delta_v_wheel3) {
+  } else if (delta_v_wheel2 != 0 && delta_v_wheel2 >= delta_v_wheel1 && delta_v_wheel2 >= delta_v_wheel3) {
     acc_wheel1 = default_accelleration * (delta_v_wheel1 / delta_v_wheel2);
-    acc_wheel2 = default_accelleration;
     acc_wheel3 = default_accelleration * (delta_v_wheel3 / delta_v_wheel2);
-  } else {
+  } else if (delta_v_wheel3 != 0) {
     acc_wheel1 = default_accelleration * (delta_v_wheel1 / delta_v_wheel3);
     acc_wheel2 = default_accelleration * (delta_v_wheel2 / delta_v_wheel3);
-    acc_wheel3 = default_accelleration;
   }
 }
 
@@ -226,17 +233,13 @@ void interactiveDriving() {
       last_velocity_update = micros();
 
       if (velocity_wheel1 < target_velocity_wheel1) {
-        float delta_v = (acc_wheel1 * abs(cos(2.61799 - direction))) / 20;
-        if (delta_v < 0.00001) delta_v = 0.00001;
-        velocity_wheel1 += delta_v;
+        velocity_wheel1 += acc_wheel1 / 20;
         if (velocity_wheel1 > target_velocity_wheel1) {
           velocity_wheel1 = target_velocity_wheel1;
         }
         abs_spike_period_wheel1 = abs(velocityToPWMPeriod(velocity_wheel1)) / 2;
       } else if (velocity_wheel1 > target_velocity_wheel1) {
-        float delta_v = (acc_wheel1 * abs(cos(2.61799 - direction))) / 20;
-        if (delta_v < 0.00001) delta_v = 0.00001;
-        velocity_wheel1 -= delta_v;
+        velocity_wheel1 -= acc_wheel1 / 20;
         if (velocity_wheel1 < target_velocity_wheel1) velocity_wheel1 = target_velocity_wheel1;
         abs_spike_period_wheel1 = abs(velocityToPWMPeriod(velocity_wheel1)) / 2;
       }
@@ -246,17 +249,13 @@ void interactiveDriving() {
 
 
       if (velocity_wheel2 < target_velocity_wheel2) {
-        float delta_v = (acc_wheel2 * abs(cos(2.61799 - direction))) / 20;
-        if (delta_v < 0.00001) delta_v = 0.00001;
-        velocity_wheel2 += delta_v;
+        velocity_wheel2 += acc_wheel2 / 20;
         if (velocity_wheel2 > target_velocity_wheel2) {
           velocity_wheel2 = target_velocity_wheel2;
         }
         abs_spike_period_wheel2 = abs(velocityToPWMPeriod(velocity_wheel2)) / 2;
       } else if (velocity_wheel2 > target_velocity_wheel2) {
-        float delta_v = (acc_wheel2 * abs(cos(2.61799 - direction))) / 20;
-        if (delta_v < 0.00001) delta_v = 0.00001;
-        velocity_wheel2 -= delta_v;
+        velocity_wheel2 -= acc_wheel2 / 20;
         if (velocity_wheel2 < target_velocity_wheel2) velocity_wheel2 = target_velocity_wheel2;
         abs_spike_period_wheel2 = abs(velocityToPWMPeriod(velocity_wheel2)) / 2;
       }
@@ -266,23 +265,22 @@ void interactiveDriving() {
 
 
       if (velocity_wheel3 < target_velocity_wheel3) {
-        float delta_v = (acc_wheel3 * abs(cos(2.61799 - direction))) / 20;
-        if (delta_v < 0.00001) delta_v = 0.00001;
-        velocity_wheel3 += delta_v;
+        velocity_wheel3 += acc_wheel3 / 20;
         if (velocity_wheel3 > target_velocity_wheel3) {
           velocity_wheel3 = target_velocity_wheel3;
         }
         abs_spike_period_wheel3 = abs(velocityToPWMPeriod(velocity_wheel3)) / 2;
       } else if (velocity_wheel3 > target_velocity_wheel3) {
-        float delta_v = (acc_wheel3 * abs(cos(2.61799 - direction))) / 20;
-        if (delta_v < 0.00001) delta_v = 0.00001;
-        velocity_wheel3 -= delta_v;
+        velocity_wheel3 -= acc_wheel3 / 20;
         if (velocity_wheel3 < target_velocity_wheel3) velocity_wheel3 = target_velocity_wheel3;
         abs_spike_period_wheel3 = abs(velocityToPWMPeriod(velocity_wheel3)) / 2;
       }
 
       if (velocity_wheel3 > 0) GPIOC_PDOR |= 1 << 4;
       else GPIOC_PDOR &= ~(1 << 4);
+
+      // if (target_velocity_wheel1 > default_velocity)
+      //   digitalWrite(LED, HIGH);
     }
   }
 
