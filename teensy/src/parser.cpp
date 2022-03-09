@@ -2,12 +2,12 @@
 #include "Arduino.h"
 #include "parser.h"
 
-#define NUM_VALID_COMMANDS 10
+#define NUM_VALID_COMMANDS 8
 
 char serialString[50];
 int nextWritePosition = 0;
 boolean isNewFullCommand = false;
-char validCommands[NUM_VALID_COMMANDS + 1] = "RDAaSsMmIE";
+char validCommands[NUM_VALID_COMMANDS + 1] = "AaSsMmIE";
 
 boolean receiveSerialData() {
   while (Serial.available() > 0) {
@@ -15,6 +15,7 @@ boolean receiveSerialData() {
     if (c == '{') {
       nextWritePosition = 0;
       isNewFullCommand = false;
+      memset(serialString, '\0', sizeof(serialString));
     } else if (c == '}')
       isNewFullCommand = true;
     else {
@@ -45,7 +46,7 @@ Command parseCommand() {
   strtok(serialString, ";"); // throw away
 
   for (int i = 0; i < 3; i++) {
-    char *param = strtok(NULL, ";}");
+    char *param = strtok(NULL, ";");
     command.parameters[i] = atof(param);
   }
 
