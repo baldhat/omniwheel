@@ -133,7 +133,7 @@ void runInteractiveCommand(Command command) {
 void update(Command command) {
   direction = command.parameters[0];
   velocity = command.parameters[1] * default_velocity * 0.7;
-  angularVelocity = command.parameters[2] * default_velocity * 0.3;
+  angularVelocity = command.parameters[2] * default_velocity * 0.3 * 5; // 5 ist random
 
   float rotation_velocity = RADIUS * angularVelocity;
 
