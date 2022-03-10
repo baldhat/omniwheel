@@ -73,11 +73,11 @@ class OmniwheelController(Controller):
 
     def on_L3_y_at_rest(self):
         self.last_x = 0
-        self.update(True)
+        self.update()
 
     def on_L3_x_at_rest(self):
         self.last_y = 0
-        self.update(True)
+        self.update()
 
     def on_R3_left(self, value):
         self.last_rot = - value / 32768
@@ -95,11 +95,10 @@ class OmniwheelController(Controller):
 
     def on_R3_x_at_rest(self):
         self.last_rot = 0
-        self.update(True)
+        self.update()
 
     def on_R3_y_at_rest(self):
-        self.last_rot = 0
-        self.update(True)
+        pass
 
     def on_up_arrow_press(self):
         if not self.interactiveMode:
@@ -125,7 +124,7 @@ class OmniwheelController(Controller):
     def on_left_right_arrow_release(self):
         pass
 
-    def update(self, urgent=False):
+    def update(self):
         new_direction, velocity = to_polar(self.last_x, self.last_y)
         rotation = self.last_rot
 

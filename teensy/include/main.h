@@ -4,12 +4,14 @@
 #define main_h
 #include "parser.h"
 
-float velocityToPWMPeriod(float velocity_wheel1);
 void runCommand(Command command);
-float PWMPeriodToVelocity(float pwmPeriod);
+float velocityPWMConversion(float value);
 void setMicrostepPins(int micro_steps);
 void interactiveDriving();
 void runInteractiveCommand(Command command);
-void update(Command command);
+void updateTargets(Command command);
+void setDirectionPins();
+void updateVelocities(float abs_spike_periods[3]);
+void loadDefaultValues();
 
 #endif
