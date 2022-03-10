@@ -40,8 +40,8 @@ void setup() {
   pinMode(MS2, OUTPUT);
   pinMode(MS3, OUTPUT);
 
-  for (int i = 2; i < 11; i++) pinMode(i, OUTPUT);
-  for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], HIGH);
+  for (int i = 2; i < 11; i++) pinMode(i, OUTPUT); // Set all driver pins to OUTPUT
+  for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], HIGH); // Disable all motors
 
   loadDefaultValues();
 }
@@ -138,11 +138,13 @@ void interactiveDriving() {
 
   long last_state_changes[3];
   float abs_spike_periods[3];
+  long steps[3];
 
   for (int i = 0; i < 3; i++) {
     last_state_changes[i] = 0;
     wheel_velocities[i] = 0;
     target_velocities[i] = 0;
+    steps[i] = 0;
     abs_spike_periods[i] = velocityPWMConversion(wheel_velocities[i]) / 2;
   }
 
@@ -159,22 +161,27 @@ void interactiveDriving() {
     if (micros() - last_state_changes[0] >= abs_spike_periods[0] && wheel_velocities[0] != 0) {
       GPIOA_PDOR ^= 1 << 12; // A12 = Pin 3
       last_state_changes[0] = micros();
+      steps[0]++;
     }
 
     if (micros() - last_state_changes[1] >= abs_spike_periods[1] && wheel_velocities[1] != 0) {
       GPIOD_PDOR ^= 1 << 4;
       last_state_changes[1] = micros();
+      steps[1]++;
     }
 
     if (micros() - last_state_changes[2] >= abs_spike_periods[2] && wheel_velocities[2] != 0) {
       GPIOC_PDOR ^= 1 << 3;
       last_state_changes[2] = micros();
+      steps[2]++;
     }
 
     if (micros() - last_velocity_update > 50000) {
       last_velocity_update = micros();
       updateVelocities(abs_spike_periods);
       setDirectionPins();
+      sendSteps(steps);
+      for (int i = 0; i < 3; i++) steps[i] = 0;
     }
   }
 
@@ -211,8 +218,16 @@ void setDirectionPins() {
   else GPIOC_PDOR &= ~(1 << 4);
 }
 
+void sendSteps(long steps[3]) {
+  Serial.print("{");
+  Serial.print(steps[0]); Serial.print(";");
+  Serial.print(steps[1]); Serial.print(";");
+  Serial.print(steps[2]); Serial.print(";");
+  Serial.println("}");
+}
+
 /**
-  Convert wheel velocity to PWM period in microseconds [µs]
+  Convert wheel velocity to PWM period in microseconds [µs] and reverse
 */
 float velocityPWMConversion(float value) {
   if (value == 0) return 0;

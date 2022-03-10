@@ -33,7 +33,6 @@ class OmniwheelController(Controller):
         self.micro_steps = self.get_micro_steps()
         self.max_wheel_velocity = self.get_max_wheel_velocity()
 
-
     def on_x_release(self):
         """
             Pressing X enables the Interactive Driving mode

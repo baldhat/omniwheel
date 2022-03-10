@@ -8,9 +8,14 @@ from omniwheel import OmniwheelController
 def print_serial_data(ser):
     while True:
         if ser.inWaiting():
-            print(ser.readline().decode(), end="")
+            line = ser.readline().decode()
+            if line.startswith("{"):
+                line = line[1:len(line) - 1]
+                steps = line.split(";")
+            else:
+                print(ser.readline().decode(), end="")
         else:
-            time.sleep(0.05)
+            time.sleep(0.01)
 
 try:
     ser = serial.Serial('/dev/ttyACM0', 4000000)
