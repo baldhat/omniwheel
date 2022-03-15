@@ -9,7 +9,7 @@ def print_serial_data(ser):
     while True:
         if ser.inWaiting():
             line = ser.readline().decode()
-            if line.startswith("{"):
+            if line.strip().startswith("{"):
                 line = line[1:len(line) - 1]
                 steps = line.split(";")
             else:

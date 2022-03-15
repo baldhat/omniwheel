@@ -176,13 +176,13 @@ void interactiveDriving() {
       steps[2]++;
     }
 
-    if (micros() - last_velocity_update > 50000) {
-      last_velocity_update = micros();
-      updateVelocities(abs_spike_periods);
-      setDirectionPins();
-      sendSteps(steps);
-      for (int i = 0; i < 3; i++) steps[i] = 0;
-    }
+      if (micros() - last_velocity_update > 50000) {
+        last_velocity_update = micros();
+        updateVelocities(abs_spike_periods);
+        setDirectionPins();
+        sendSteps(steps);
+        for (int i = 0; i < 3; i++) steps[i] = 0;
+      }
   }
 
   Serial.println("Leaving interactive mode");
@@ -209,13 +209,16 @@ void updateVelocities(float abs_spike_periods[3]) {
 
 void setDirectionPins() {
   if (wheel_velocities[0] > 0) GPIO9_DR_TOGGLE |= 1 << 6; // Pin 4
-  else GPIO9_DR_TOGGLE = ~(1 << 6);
+  else GPIO9_DR_TOGGLE &= ~(1 << 6);
 
-  if (wheel_velocities[1] > 0) GPIO7_DR_TOGGLE |= 1 << 17; // Pin 7
-  else GPIO7_DR_TOGGLE &= ~(1 << 17);
-
-  if (wheel_velocities[2] > 0) GPIO7_DR_TOGGLE |= 1 << 0; // Pin 10
-  else GPIO7_DR_TOGGLE &= ~(1 << 0);
+  // if (wheel_velocities[1] > 0) GPIO7_DR_TOGGLE |= 1 << 17; // Pin 7
+  // else GPIO7_DR_TOGGLE &= ~(1 << 17);
+  //
+  // if (wheel_velocities[2] > 0) GPIO7_DR_TOGGLE |= 1; // Pin 10
+  // else GPIO7_DR_TOGGLE &= ~1;
+  // digitalWriteFast(4, wheel_velocities[0] > 0);
+  digitalWriteFast(7, wheel_velocities[1] > 0);
+  digitalWriteFast(10, wheel_velocities[2] > 0);
 }
 
 void sendSteps(long steps[3]) {
