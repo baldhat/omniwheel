@@ -159,19 +159,19 @@ void interactiveDriving() {
     loop_counter++;
 
     if (micros() - last_state_changes[0] >= abs_spike_periods[0] && wheel_velocities[0] != 0) {
-      GPIOA_PDOR ^= 1 << 12; // A12 = Pin 3
+      GPIO9_DR_TOGGLE ^= 1 << 5; // Pin 3
       last_state_changes[0] = micros();
       steps[0]++;
     }
 
     if (micros() - last_state_changes[1] >= abs_spike_periods[1] && wheel_velocities[1] != 0) {
-      GPIOD_PDOR ^= 1 << 4;
+      GPIO7_DR_TOGGLE ^= 1 << 10; // Pin 6
       last_state_changes[1] = micros();
       steps[1]++;
     }
 
     if (micros() - last_state_changes[2] >= abs_spike_periods[2] && wheel_velocities[2] != 0) {
-      GPIOC_PDOR ^= 1 << 3;
+      GPIO7_DR_TOGGLE ^= 1 << 11; // Pin 9
       last_state_changes[2] = micros();
       steps[2]++;
     }
@@ -208,14 +208,14 @@ void updateVelocities(float abs_spike_periods[3]) {
 }
 
 void setDirectionPins() {
-  if (wheel_velocities[0] > 0) GPIOA_PDOR |= 1 << 13; // A13 = Pin 4
-  else GPIOA_PDOR &= ~(1 << 13); // A13 = Pin 4
+  if (wheel_velocities[0] > 0) GPIO9_DR_TOGGLE |= 1 << 6; // Pin 4
+  else GPIO9_DR_TOGGLE = ~(1 << 6);
 
-  if (wheel_velocities[1] > 0) GPIOD_PDOR |= 1 << 2;
-  else GPIOD_PDOR &= ~(1 << 2);
+  if (wheel_velocities[1] > 0) GPIO7_DR_TOGGLE |= 1 << 17; // Pin 7
+  else GPIO7_DR_TOGGLE &= ~(1 << 17);
 
-  if (wheel_velocities[2] > 0) GPIOC_PDOR |= 1 << 4;
-  else GPIOC_PDOR &= ~(1 << 4);
+  if (wheel_velocities[2] > 0) GPIO7_DR_TOGGLE |= 1 << 0; // Pin 10
+  else GPIO7_DR_TOGGLE &= ~(1 << 0);
 }
 
 void sendSteps(long steps[3]) {
@@ -265,9 +265,9 @@ void loop() {
   boolean fullCommandReceived = receiveSerialData();
   if (fullCommandReceived) {
     Command command = parseCommand();
-    if (command.valid)
+    if (command.valid) {
       runCommand(command);
-    else Serial.println("Could not parse the command");
+    } else Serial.println("Could not parse the command");
   }
-  delay(1);
+  delay(1000);
 }

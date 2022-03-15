@@ -47,7 +47,8 @@ Command parseCommand() {
 
   for (int i = 0; i < 3; i++) {
     char *param = strtok(NULL, ";");
-    command.parameters[i] = atof(param);
+    if (param != NULL)
+      command.parameters[i] = atof(param);
   }
 
   isNewFullCommand = false;
