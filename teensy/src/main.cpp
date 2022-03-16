@@ -225,7 +225,7 @@ void sendSteps(long steps[3]) {
   Serial.print("{");
   Serial.print(steps[0] / micro_steps); Serial.print(";");
   Serial.print(steps[1] / micro_steps); Serial.print(";");
-  Serial.print(steps[2] / micro_steps); Serial.print(";");
+  Serial.print(steps[2] / micro_steps);
   Serial.println("}");
 }
 
