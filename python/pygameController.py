@@ -7,6 +7,9 @@ from serial import Serial
 
 DARKGRAY = (100, 100, 100)
 
+R = 0.15
+MOTOR_REVS_PER_METER = 28
+
 def send(ser: Serial, string):
     ser.write(string.encode())
 
@@ -31,6 +34,8 @@ class Controller():
         pygame.display.set_caption("Omniwheel")
         self.screen.fill(DARKGRAY)
         self.font = pygame.font.Font('freesansbold.ttf', 16)
+        self.clock = pygame.time.Clock()
+        self.image = pygame.image.load("assets/omniwheel.png")
 
         self.ser = Serial('/dev/ttyACM0', 4000000)
 
@@ -55,7 +60,7 @@ class Controller():
             self.render()
 
     def handleSerial(self):
-        if self.ser.inWaiting():
+        while self.ser.inWaiting():
             line = self.ser.readline().decode()
             if line.strip().startswith("{"):
                 line = line[1:len(line) - 1]
@@ -124,27 +129,23 @@ class Controller():
     def decreaseVelocity(self):
         if not self.motorsEnabled:
             self.wheel_velocity = round(self.wheel_velocity - 0.01, 2)
-            print("Setting max wheel velocity to", self.wheel_velocity)
             self.ser.write(b'{S;' + str(self.wheel_velocity).encode() + b'}')
 
     def increaseVelocity(self):
         if not self.motorsEnabled:
             self.wheel_velocity = round(self.wheel_velocity + 0.01, 2)
-            print("Setting max wheel velocity to", self.wheel_velocity)
             self.ser.write(b'{S;' + str(self.wheel_velocity).encode() + b'}')
 
     def decreaseMicrosteps(self):
         if not self.motorsEnabled:
             self.micro_steps = self.micro_step_options[
                 (self.micro_step_options.index(self.micro_steps) - 1) % len(self.micro_step_options)]
-            print("Setting micro steps to", self.micro_steps)
             self.ser.write(b'{M;' + str(self.micro_steps).encode() + b'}')
 
     def increaseMicrosteps(self):
         if not self.motorsEnabled:
             self.micro_steps = self.micro_step_options[
                 (self.micro_step_options.index(self.micro_steps) + 1) % len(self.micro_step_options)]
-            print("Setting micro steps to", self.micro_steps)
             self.ser.write(b'{M;' + str(self.micro_steps).encode() + b'}')
 
     def fetchMicrosteps(self):
@@ -152,7 +153,6 @@ class Controller():
         while not self.ser.inWaiting():
             pass
         micro_steps = int(self.ser.readline())
-        print("Using micro steps:", micro_steps)
         return micro_steps
 
     def fetchWheelVelocity(self):
@@ -160,12 +160,21 @@ class Controller():
         while not self.ser.inWaiting():
             pass
         max_wheel_velocity = float(self.ser.readline())
-        print("Using max wheel velocity:", max_wheel_velocity)
         return max_wheel_velocity
 
     def updatePosition(self, steps):
-        revs = [int(step_strings) / (self.micro_steps * 200) for step_strings in steps]
-        print(revs)
+        steps = [steps[0], steps[1], steps[2]]
+        revs = np.array([int(step_strings.strip().replace("{", "").replace("}", "")) / 200 for step_strings in steps])
+        dists = revs / MOTOR_REVS_PER_METER
+        va, vb, vc = dists[0], dists[1], dists[2]
+        omega = np.sum(dists) / (3 * R)
+        alpha = (np.pi / 2 - np.arctan2((np.sqrt(3) * (va - vb)), (va + vb - 2*vc)))
+        dist = np.sqrt(((va + vb - 2 * vc) / 3)**2 + (va - vb)**2 / 3)
+        self.orientation += omega
+        if not np.isnan(alpha):
+            dx = dist * np.cos(alpha + np.pi / 2)
+            dy = dist * np.sin(alpha + np.pi / 2)
+            self.position += np.array([dx, dy])
 
     def displayValues(self):
         pygame.draw.line(self.screen, (255, 255, 255), (self.WIDTH * 0.8, 0), (self.WIDTH * 0.8, self.HEIGHT))
@@ -184,7 +193,20 @@ class Controller():
     def render(self):
         self.screen.fill(DARKGRAY)
         self.displayValues()
+        self.renderRobot()
         pygame.display.flip()
+        self.clock.tick(10)
+
+    def renderRobot(self):
+        self.blitRotateCenter(self.image, self.toPixelPos(self.position), self.orientation)
+
+    def toPixelPos(self, position):
+        return position * 100 + np.array([self.WIDTH / 2, self.HEIGHT / 2])
+
+    def blitRotateCenter(self, image, center, angle):
+        rotated_image = pygame.transform.rotate(image, angle * 180 / math.pi)
+        new_rect = rotated_image.get_rect(center=image.get_rect(center=center).center)
+        self.screen.blit(rotated_image, new_rect)
 
 
 if __name__ == '__main__':

@@ -161,19 +161,19 @@ void interactiveDriving() {
     if (micros() - last_state_changes[0] >= abs_spike_periods[0] && wheel_velocities[0] != 0) {
       GPIO9_DR_TOGGLE ^= 1 << 5; // Pin 3
       last_state_changes[0] = micros();
-      steps[0]++;
+      if (wheel_velocities[0] > 0) steps[0]++; else steps[0]--;
     }
 
     if (micros() - last_state_changes[1] >= abs_spike_periods[1] && wheel_velocities[1] != 0) {
       GPIO7_DR_TOGGLE ^= 1 << 10; // Pin 6
       last_state_changes[1] = micros();
-      steps[1]++;
+      if (wheel_velocities[1] > 0) steps[1]++; else steps[1]--;
     }
 
     if (micros() - last_state_changes[2] >= abs_spike_periods[2] && wheel_velocities[2] != 0) {
       GPIO7_DR_TOGGLE ^= 1 << 11; // Pin 9
       last_state_changes[2] = micros();
-      steps[2]++;
+      if (wheel_velocities[2] > 0) steps[2]++; else steps[2]--;
     }
 
     if (micros() - last_velocity_update > 50000) {
@@ -223,9 +223,9 @@ void setDirectionPins() {
 
 void sendSteps(long steps[3]) {
   Serial.print("{");
-  Serial.print(steps[0]); Serial.print(";");
-  Serial.print(steps[1]); Serial.print(";");
-  Serial.print(steps[2]); Serial.print(";");
+  Serial.print(steps[0] / micro_steps); Serial.print(";");
+  Serial.print(steps[1] / micro_steps); Serial.print(";");
+  Serial.print(steps[2] / micro_steps); Serial.print(";");
   Serial.println("}");
 }
 
