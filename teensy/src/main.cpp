@@ -6,11 +6,7 @@
 #include "configuration.h"
 #include "helper.h"
 
-#define RADIUS 0.15
-#define REVS_PER_METER 4
-#define MOTOR_REVS_PER_WHEEL_REV 7 // grob
-#define DIST_PER_WHEEL_REV 0.25  //m
-#define MOTOR_REVS_PER_SECOND_BY_METERS_PER_SECOND 28 // grob
+#define MOTOR_REVS_PER_SECOND_BY_METERS_PER_SECOND 48 // grob
 #define ROTATION_PART 0.3
 #define STEPS_PER_REVOLUTION 200
 
@@ -131,7 +127,6 @@ void handleSerial() {
 }
 
 void interactiveDriving() {
-  Serial.println("Entered interactive mode");
   for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], LOW);
 
   interactiveModeEnabled = true;
@@ -148,7 +143,6 @@ void interactiveDriving() {
     abs_spike_periods[i] = velocityPWMConversion(wheel_velocities[i]) / 2;
   }
 
-  long t_0 = micros();
   long last_velocity_update = micros();
   unsigned long loop_counter = 0;
 
@@ -185,9 +179,6 @@ void interactiveDriving() {
     }
   }
 
-  Serial.println("Leaving interactive mode");
-  println("mean loop time[µs]: ", (micros() - t_0 * 1.0) / loop_counter);
-
   for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], HIGH);
 }
 
@@ -223,9 +214,9 @@ void setDirectionPins() {
 
 void sendSteps(long steps[3]) {
   Serial.print("{");
-  Serial.print(steps[0] / micro_steps); Serial.print(";");
-  Serial.print(steps[1] / micro_steps); Serial.print(";");
-  Serial.print(steps[2] / micro_steps);
+  Serial.print(steps[0]); Serial.print(";");
+  Serial.print(steps[1]); Serial.print(";");
+  Serial.print(steps[2]);
   Serial.println("}");
 }
 
