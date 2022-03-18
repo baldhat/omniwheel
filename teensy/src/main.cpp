@@ -14,6 +14,11 @@
 #define MS1 26
 #define MS2 25
 #define MS3 24
+#define VBAT 9
+/*
+  2.988V = 925 = 24.24V
+  900 = 23.66V
+*/
 
 int enablePins[] = {2, 5, 8};
 
@@ -45,11 +50,9 @@ void setup() {
 void runCommand(Command command) {
   switch(command.type) {
     case 's':
-      println(getVelocity());
-      break;
+      println(getVelocity()); break;
     case 'a':
-      println(getAccelleration());
-      break;
+      println(getAccelleration()); break;
     case 'S':
       setVelocity(command.parameters[0]);
       default_velocity = command.parameters[0];
@@ -65,11 +68,9 @@ void runCommand(Command command) {
       steps_per_rev_with_micro_stepping = STEPS_PER_REVOLUTION * micro_steps;
       break;
     case 'm':
-      println(getMicrosteps());
-      break;
+      println(getMicrosteps()); break;
     case 'I':
-      interactiveDriving();
-      break;
+      interactiveDriving(); break;
   }
 }
 
@@ -79,6 +80,7 @@ void runInteractiveCommand(Command command) {
       updateTargets(command); break;
     case 'E':
       interactiveModeEnabled = false;
+      println("Battery Voltage: ",  analogRead(VBAT) * 0.0232 + 2.78);
       break;
   }
 }

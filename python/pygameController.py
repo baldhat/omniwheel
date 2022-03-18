@@ -9,7 +9,7 @@ from serial import Serial
 
 DARKGRAY = (100, 100, 100)
 
-R = 0.134
+R = 0.135
 MOTOR_REVS_PER_METER = 47.5
 
 def send(ser: Serial, string):
@@ -51,7 +51,7 @@ class Controller():
         self.position = np.zeros(2)
         self.orientation = 0
 
-        self.MAP_SCALE = 60
+        self.MAP_SCALE = 100
         self.waypoints = [(0, 0)]
         self.updateCounter = 0
 
@@ -77,7 +77,7 @@ class Controller():
                 steps = line.split(";")
                 self.updatePosition(steps)
             else:
-                print(self.ser.readline().decode(), end="")
+                print(line, end="")
 
     def handleEvents(self):
         for event in pygame.event.get():
@@ -232,7 +232,7 @@ class Controller():
         self.blitRotateCenter(self.image, self.toPixelPos(self.position), self.orientation)
 
     def toPixelPos(self, position):
-        return np.array([position[0], -position[1]]) * self.MAP_SCALE + np.array([self.WIDTH / 2, self.HEIGHT / 2])
+        return np.array([position[0], -position[1]]) * self.MAP_SCALE + np.array([self.WIDTH / 2.2, self.HEIGHT / 2])
 
     def blitRotateCenter(self, image, center, angle):
         rotated_image = pygame.transform.rotate(image, angle * 180 / math.pi)
