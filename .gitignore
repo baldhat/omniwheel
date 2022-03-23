@@ -5,3 +5,6 @@ python/.idea/misc.xml
 python/.idea/modules.xml
 python/.idea/python.iml
 python/.idea/vcs.xml
+omniwheel_ros/build
+omniwheel_ros/install
+omniwheel_ros/log

@@ -1,0 +1,7 @@
+float32 velocity 0
+float32 acceleration 0
+int16 microsteps 0
+---
+float32 velocity
+float32 acceleration
+int16 microsteps
