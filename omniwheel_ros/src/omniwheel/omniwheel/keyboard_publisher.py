@@ -1,16 +1,24 @@
-import os
-
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
-import math
-import pygame
 from helper import to_polar
 
+import os
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+import pygame
+
+import math
+import cmath
 import rclpy
 from rclpy.node import Node
 
 from omniwheel_interfaces.msg import ControllerValue
 from omniwheel_interfaces.srv import EnableMotors
 
+
+def to_polar(x, y):
+    r = math.sqrt(x ** 2 + y ** 2)
+    if r > 1:
+        r = 1
+    t = cmath.polar(x + y * 1j)[1]
+    return t, r
 
 class KeyboardPublisher(Node):
 

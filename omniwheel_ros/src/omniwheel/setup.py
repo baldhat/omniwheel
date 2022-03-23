@@ -8,7 +8,7 @@ setup(
     packages=[package_name],
     data_files=[
         ('share/ament_index/resource_index/packages',
-            ['resource/' + package_name]),
+         ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
     ],
     install_requires=['setuptools'],
@@ -20,8 +20,9 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-			'controller = omniwheel.controller_publisher:main',
-			'teensy_node = omniwheel.teensy_node:main',
+            'controller = omniwheel.controller_publisher:main',
+            'teensy_node = omniwheel.teensy_node:main',
+            'keyboard_controller = omniwheel.keyboard_publisher:main',
         ],
     },
 )
