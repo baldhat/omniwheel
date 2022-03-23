@@ -26,6 +26,9 @@ class ControllerSubscriber(Node):
         self.position = np.zeros(2)
         self.orientation = 0
         
+        self.MOTOR_REVS_PER_METER = 47.5
+        self.RADIUS = 0.135
+        
     def enable_motors_callback(self, request, response):
         if request.enable:
             self.ser.write(b'{I}')

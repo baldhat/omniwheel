@@ -1,5 +1,3 @@
-from helper import to_polar
-
 import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
@@ -31,12 +29,19 @@ class KeyboardPublisher(Node):
 
         pygame.init()
         pygame.display.init()
+        self.WIDTH = 1400
+        self.HEIGHT = 1000
+        os.environ['SDL_VIDEO_WINDOW_POS'] = '%i,%i' % (1920 - 1405, 40)
+        self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
 
         self.last_x = 0
         self.last_y = 0
         self.last_rot = 0
 
     def run(self):
+        x = self.last_x
+        y = self.last_y
+        rot = self.last_rot
         for event in pygame.event.get():
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_q:
@@ -66,6 +71,8 @@ class KeyboardPublisher(Node):
                     self.last_x = 1
                 if event.key == pygame.K_SPACE:
                     self.send_enable_motors(not self.motors_enabled)
+        if self.last_x != x or self.last_y != y or self.last_rot != rot:
+            self.update()
 
     def update(self):
         new_direction, velocity = to_polar(self.last_x, self.last_y)
