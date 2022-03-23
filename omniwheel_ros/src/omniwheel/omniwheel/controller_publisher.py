@@ -67,12 +67,12 @@ class ControllerPublisher(Node):
         elif event.button == 3:
             self.disableMotors()
         else:
-            print(event.button)
+            self.get_logger().info(event.button)
 
     def update(self):
         new_direction, velocity = to_polar(self.last_x, self.last_y)
         rotation = self.last_rot
-        new_direction = new_direction - math.pi / 2 # the robot has 0 degrees at the front
+        new_direction = new_direction - math.pi / 2  # the robot has 0 degrees at the front
 
         if self.motors_enabled:
             msg = ControllerValue()

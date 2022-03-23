@@ -1,9 +1,10 @@
 import rclpy
+import numpy as np
 from rclpy.node import Node
 
 from omniwheel_interfaces.msg import ControllerValue
-from omniwheel_interfaces.srv import EnableMotors
-from omniwheel_interfaces.srv import DriveConfig
+from geometry_msgs.msg import Pose
+from omniwheel_interfaces.srv import EnableMotors, DriveConfig
 
 from serial import Serial
 
@@ -15,12 +16,15 @@ class ControllerSubscriber(Node):
         self.subscription = self.create_subscription(ControllerValue, 'controller_value', self.controller_callback, 10)
         self.enable_service = self.create_service(EnableMotors, 'enable_motors', self.enable_motors_callback)
         self.config_service = self.create_service(DriveConfig, 'drive_config', self.drive_config_callback)
+        self.odometry = self.create_publisher(Pose, 'omniwheel_pose', 10)
         self.subscription
         self.ser = Serial('/dev/ttyACM0', 4000000)
         
         self.velocity = self.getTeensyVelocity()
         self.acceleration = self.getTeensyAcceleration()
         self.microsteps = self.getTeensyMicrosteps()
+        self.position = np.zeros(2)
+        self.orientation = 0
         
     def enable_motors_callback(self, request, response):
         if request.enable:
@@ -62,7 +66,7 @@ class ControllerSubscriber(Node):
             self.microsteps = request.microsteps
     
         return response
-       
+
     def controller_callback(self, msg):
         self.get_logger().debug('"%f %f %f"' % (msg.direction, msg.velocity, msg.rotation))
         commandString = '{I;' + str(round(msg.direction, 2)) + \
@@ -88,17 +92,48 @@ class ControllerSubscriber(Node):
             pass
         return int(self.ser.readline())
 
+    def checkSerial(self):
+        while self.ser.inWaiting():
+            line = self.ser.readline().decode().strip()
+            if line.startswith("{"):
+                line = line[1:len(line) - 1]
+                steps = line.split(";")
+                self.updatePosition(steps)
+            else:
+                self.get_logger().info(line)
+
+    def updatePosition(self, steps):
+        steps = [steps[0], steps[1], steps[2]]
+        revs = np.array([int(step_strings.strip().replace("{", "").replace("}", "")) / (200 * self.microsteps) for step_strings in steps])
+        dists = revs / self.MOTOR_REVS_PER_METER
+        va, vb, vc = dists[0], dists[1], dists[2]
+        omega = np.sum(dists) / (3 * self.RADIUS)
+        alpha = - ((np.pi / 2 - np.arctan2((np.sqrt(3) * (va - vb)), (va + vb - 2*vc))) + np.pi)
+        dist = np.sqrt(((va + vb - 2 * vc) / 3)**2 + (va - vb)**2 / 3)
+        self.orientation += omega
+        if not np.isnan(alpha) and dist > 0:
+            dx = dist * np.cos(alpha + self.orientation + np.pi / 2)
+            dy = dist * np.sin(alpha + self.orientation + np.pi / 2)
+            self.position += np.array([dx, dy])
+            message = Pose()
+            message.position.x, message.position.y, message.orientation.z = self.position[0], self.position[1], self.orientation
+            self.odometry.publish(message)
+
+
 def main(args=None):
     rclpy.init(args=args)
 
     controller_subscriber = ControllerSubscriber()
     
     try:
-        rclpy.spin(controller_subscriber)
+        while rclpy.ok():
+            rclpy.spin_once(controller_subscriber, timeout_sec=0)
+            controller_subscriber.checkSerial()
     except KeyboardInterrupt:
         print('Bye')
 
     rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()

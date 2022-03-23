@@ -80,7 +80,9 @@ void runInteractiveCommand(Command command) {
       updateTargets(command); break;
     case 'E':
       interactiveModeEnabled = false;
-      println("Battery Voltage: ",  analogRead(VBAT) * 0.0232 + 2.78);
+      int voltage = analogRead(VBAT);
+      println("Analog Value: ", voltage);
+      println("Battery Voltage: ",  voltage * 0.0232 + 2.78);
       break;
   }
 }
