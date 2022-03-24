@@ -23,6 +23,7 @@ setup(
             'controller = omniwheel.controller_publisher:main',
             'teensy_node = omniwheel.teensy_node:main',
             'keyboard_controller = omniwheel.keyboard_publisher:main',
+            'path_visualizer = omniwheel.path_visualizer:main'
         ],
     },
 )
