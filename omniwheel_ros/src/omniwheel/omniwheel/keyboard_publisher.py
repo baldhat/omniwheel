@@ -18,6 +18,7 @@ def to_polar(x, y):
     t = cmath.polar(x + y * 1j)[1]
     return t, r
 
+
 class KeyboardPublisher(Node):
 
     def __init__(self):
@@ -29,9 +30,9 @@ class KeyboardPublisher(Node):
 
         pygame.init()
         pygame.display.init()
-        self.WIDTH = 1400
-        self.HEIGHT = 1000
-        os.environ['SDL_VIDEO_WINDOW_POS'] = '%i,%i' % (1920 - 1405, 40)
+        self.WIDTH = 400
+        self.HEIGHT = 300
+        os.environ['SDL_VIDEO_WINDOW_POS'] = '%i,%i' % (400, 300)
         self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
 
         self.last_x = 0
@@ -73,6 +74,7 @@ class KeyboardPublisher(Node):
                     self.send_enable_motors(not self.motors_enabled)
         if self.last_x != x or self.last_y != y or self.last_rot != rot:
             self.update()
+        pygame.display.flip()
 
     def update(self):
         new_direction, velocity = to_polar(self.last_x, self.last_y)

@@ -9,13 +9,26 @@ from omniwheel_interfaces.srv import EnableMotors, DriveConfig
 from serial import Serial
 
 
-class ControllerSubscriber(Node):
+class TeensyNode(Node):
+    """
+    This class represents the interface between the ROS graph and the Teensy driving the stepper motors, which connected
+    via a serial connection.
+
+    ROS subscriber:
+        - /controller_value
+    ROS publisher:
+        - /omniwheel_pose
+    ROS service servers:
+        - /enable_motors
+        - /drive_config
+    """
     
     def __init__(self):
         super().__init__('teensy_node')
         self.subscription = self.create_subscription(ControllerValue, 'controller_value', self.controller_callback, 10)
         self.enable_service = self.create_service(EnableMotors, 'enable_motors', self.enable_motors_callback)
         self.config_service = self.create_service(DriveConfig, 'drive_config', self.drive_config_callback)
+        # self.position_service = self.create_service() # Used to reset the
         self.odometry = self.create_publisher(Pose, 'omniwheel_pose', 10)
         self.subscription
         self.ser = Serial('/dev/ttyACM0', 4000000)
@@ -37,7 +50,7 @@ class ControllerSubscriber(Node):
             self.ser.write(b'{E}')
             response.enabled = False
         
-        self.get_logger().info('Motors Enabled' if response.enabled == True  else 'Motors Disabled')
+        self.get_logger().info('Motors Enabled' if response.enabled else 'Motors Disabled')
 
         return response
         
@@ -126,7 +139,7 @@ class ControllerSubscriber(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    controller_subscriber = ControllerSubscriber()
+    controller_subscriber = TeensyNode()
     
     try:
         while rclpy.ok():
