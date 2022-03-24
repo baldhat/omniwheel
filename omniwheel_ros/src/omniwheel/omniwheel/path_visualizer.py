@@ -28,7 +28,7 @@ class PathVisualizer(Node):
         self.font = pygame.font.Font('freesansbold.ttf', 16)
         self.bigFont = pygame.font.Font('freesansbold.ttf', 20)
         self.clock = pygame.time.Clock()
-        self.image = pygame.image.load("assets/omniwheel.png")
+        self.image = pygame.image.load("src/omniwheel/omniwheel/assets/omniwheel.png")
 
         self.position = np.zeros(2)
         self.orientation = 0
@@ -36,7 +36,7 @@ class PathVisualizer(Node):
         self.MAP_SCALE = 100
         self.waypoints = [(0, 0)]
 
-    def controller_callback(self, msg):
+    def pose_callback(self, msg):
         self.orientation = msg.orientation.z
         self.position = (msg.position.x, msg.position.y)
         self.waypoints.append(self.position)
