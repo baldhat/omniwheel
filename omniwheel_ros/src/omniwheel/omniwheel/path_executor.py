@@ -34,6 +34,7 @@ class PathExecutor(Node):
         self.motors_enabled = False
 
         self.MAX_POS_ERROR = 0.01
+        self.MAX_ROT_ERROR = 0.01
 
     def execute_callback(self, goal_handle):
         self.get_logger().info("Executing waypoint mission")
@@ -64,7 +65,7 @@ class PathExecutor(Node):
 
     def drive_to_pose(self, pose: Pose):
         self.get_logger().info("Driving to pose " + str(pose) + " from current pose " + str(self.pose))
-        while self.distanceTo(pose) > self.MAX_POS_ERROR or self.angularOffset(pose) > 0.5:
+        while self.distanceTo(pose) > self.MAX_POS_ERROR or self.angularOffset(pose) > self.MAX_ROT_ERROR:
             direction, velocity, rotation = self.calculateControllerValue(pose)
             self.sendControllerValue(direction, velocity, rotation)
             time.sleep(0.05)
@@ -75,20 +76,23 @@ class PathExecutor(Node):
         drot = pose.rot - self.pose.rot
         dist = np.sqrt(dx**2 + dy**2)
         if dist > self.MAX_POS_ERROR:
-            direction = to_polar(dx, dy)[0] - math.pi / 2
+            direction = to_polar(dx, dy)[0] - math.pi / 2 - self.pose.rot
             velocity = 1 if dist > 0.5 else 2 * dist
+            if velocity < 0.1:
+                velocity = 0.1
             rotation = 0
         else:
             direction = 0
             velocity = 0
             rotation = drot/abs(drot) if abs(drot) > 1 else drot
+            self.get_logger().info("Current Pose: " + str(self.pose) + " Target pose: " + str(pose))
         return direction, velocity, rotation
 
     def distanceTo(self, pose: Pose):
         return np.sqrt((pose.x - self.pose.x)**2 + (pose.y - self.pose.y)**2)
 
     def angularOffset(self, pose: Pose):
-        return abs(pose.rot - pose.rot)
+        return abs(pose.rot - self.pose.rot) % (2 * math.pi)
 
     def sendControllerValue(self, direction, velocity, rotation):
         msg = ControllerValue()

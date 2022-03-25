@@ -143,6 +143,7 @@ class TeensyNode(Node):
         alpha = - ((np.pi / 2 - np.arctan2((np.sqrt(3) * (va - vb)), (va + vb - 2*vc))) + np.pi)
         dist = np.sqrt(((va + vb - 2 * vc) / 3)**2 + (va - vb)**2 / 3)
         self.orientation += omega
+        self.orientation = self.orientation % (2 * np.pi)
         if not np.isnan(alpha) and (dist > 0 or omega > 0):
             dx = dist * np.cos(alpha + self.orientation + np.pi / 2)
             dy = dist * np.sin(alpha + self.orientation + np.pi / 2)
