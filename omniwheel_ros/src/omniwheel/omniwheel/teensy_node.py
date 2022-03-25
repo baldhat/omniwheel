@@ -138,7 +138,7 @@ class TeensyNode(Node):
             dy = dist * np.sin(alpha + self.orientation + np.pi / 2)
             self.position += np.array([dx, dy])
             message = Pose()
-            message.position.x, message.position.y, message.orientation.rot = self.position[0], self.position[1], self.orientation
+            message.position.x, message.position.y, message.orientation.z = self.position[0], self.position[1], self.orientation
             self.odometry.publish(message)
 
 
