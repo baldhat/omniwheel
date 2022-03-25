@@ -92,8 +92,8 @@ class TeensyNode(Node):
 
     def set_position_callback(self, request, response):
         self.position = np.array((request.pose.x, request.pose.y))
-        self.orientation = request.pose.z
-        response.pose.x, response.pose.y, response.pose.z = request.pose.x, request.pose.y, request.pose.z
+        self.orientation = request.pose.rot
+        response.pose.x, response.pose.y, response.pose.rot = request.pose.x, request.pose.y, request.pose.rot
         return response
         
     def getTeensyVelocity(self):
@@ -138,7 +138,7 @@ class TeensyNode(Node):
             dy = dist * np.sin(alpha + self.orientation + np.pi / 2)
             self.position += np.array([dx, dy])
             message = Pose()
-            message.position.x, message.position.y, message.orientation.z = self.position[0], self.position[1], self.orientation
+            message.position.x, message.position.y, message.orientation.rot = self.position[0], self.position[1], self.orientation
             self.odometry.publish(message)
 
 

@@ -63,7 +63,7 @@ class PathVisualizer(Node):
         self.display_offset = np.array([self.WIDTH / 2.2, self.HEIGHT / 2])
 
     def pose_callback(self, msg):
-        self.orientation = msg.orientation.z
+        self.orientation = msg.orientation.rot
         self.position = (msg.position.x, msg.position.y)
         self.waypoints.append(self.position)
 
@@ -99,7 +99,7 @@ class PathVisualizer(Node):
 
     def resetPosition(self):
         request = SetPose.Request()
-        request.position.x, request.position.y, request.orientation.z = 0.0, 0.0, 0.0
+        request.pose.x, request.pose.y, request.pose.rot = 0.0, 0.0, 0.0
         self.set_position_future = self.position_client.call_async(request)
 
     def tick(self):
@@ -219,7 +219,7 @@ class PathVisualizer(Node):
         try:
             response = self.set_position_future.result()
             self.position = (response.pose.x, response.pose.y)
-            self.orientation = response.pose.z
+            self.orientation = response.pose.rot
             self.waypoints = [self.position]
         except Exception as e:
             self.get_logger().info(
