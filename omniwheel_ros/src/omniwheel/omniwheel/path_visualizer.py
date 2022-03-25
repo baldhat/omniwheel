@@ -218,8 +218,8 @@ class PathVisualizer(Node):
     def handle_set_position_response(self):
         try:
             response = self.set_position_future.result()
-            self.position = (response.position.x, response.position.y)
-            self.orientation = response.orientation.z
+            self.position = (response.pose.x, response.pose.y)
+            self.orientation = response.pose.z
             self.waypoints = [self.position]
         except Exception as e:
             self.get_logger().info(
