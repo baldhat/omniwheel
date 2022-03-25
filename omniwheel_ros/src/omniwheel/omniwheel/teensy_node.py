@@ -2,8 +2,7 @@ import rclpy
 import numpy as np
 from rclpy.node import Node
 
-from omniwheel_interfaces.msg import ControllerValue
-from geometry_msgs.msg import Pose
+from omniwheel_interfaces.msg import ControllerValue, Pose
 from omniwheel_interfaces.srv import EnableMotors, DriveConfig, SetPose
 
 from serial import Serial
@@ -42,6 +41,8 @@ class TeensyNode(Node):
         
         self.MOTOR_REVS_PER_METER = 47.5
         self.RADIUS = 0.135
+
+        self.get_logger().info("Ready...")
         
     def enable_motors_callback(self, request, response):
         if request.enable:
@@ -147,7 +148,7 @@ class TeensyNode(Node):
             dy = dist * np.sin(alpha + self.orientation + np.pi / 2)
             self.position += np.array([dx, dy])
             message = Pose()
-            message.position.x, message.position.y, message.orientation.z = self.position[0], self.position[1], self.orientation
+            message.x, message.y, message.rot = self.position[0], self.position[1], self.orientation
             self.odometry.publish(message)
 
 

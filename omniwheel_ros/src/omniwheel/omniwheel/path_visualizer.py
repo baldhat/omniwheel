@@ -8,9 +8,7 @@ import rclpy
 import numpy as np
 from rclpy.node import Node
 
-from geometry_msgs.msg import Pose
-
-from omniwheel_interfaces.msg import ControllerValue
+from omniwheel_interfaces.msg import ControllerValue, Pose
 from omniwheel_interfaces.srv import EnableMotors, SetPose
 
 DARKGRAY = (100, 100, 100)
@@ -63,8 +61,8 @@ class PathVisualizer(Node):
         self.display_offset = np.array([self.WIDTH / 2.2, self.HEIGHT / 2])
 
     def pose_callback(self, msg):
-        self.orientation = msg.orientation.rot
-        self.position = (msg.position.x, msg.position.y)
+        self.orientation = msg.rot
+        self.position = (msg.x, msg.y)
         self.waypoints.append(self.position)
 
     def render(self):
