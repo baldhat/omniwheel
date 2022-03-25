@@ -91,9 +91,9 @@ class TeensyNode(Node):
         self.ser.write(commandString.encode())
 
     def set_position_callback(self, request, response):
-        self.position = np.array((request.x, request.y))
-        self.orientation = request.rot
-        response.x, response.y, response.rot = request.x, request.y, request.rot
+        self.position = np.array((request.position.x, request.position.y))
+        self.orientation = request.orientation.z
+        response.position.x, response.position.y, response.orientation.z = request.position.x, request.position.y, request.orientation.z
         return response
         
     def getTeensyVelocity(self):

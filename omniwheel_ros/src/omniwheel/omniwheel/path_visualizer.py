@@ -81,7 +81,8 @@ class PathVisualizer(Node):
         return np.array([position[0], -position[1]]) * self.MAP_SCALE + self.display_offset
 
     def toRealPos(self, position):
-        return (np.array([position[0], -position[1]]) - self.display_offset) / self.MAP_SCALE
+        pos = (np.array([position[0], position[1]]) - self.display_offset) / self.MAP_SCALE
+        return np.array((pos[0], -pos[1]))
 
     def blitRotateCenter(self, image, center, angle):
         rotated_image = pygame.transform.rotate(image, angle * 180 / math.pi)
@@ -98,7 +99,7 @@ class PathVisualizer(Node):
 
     def resetPosition(self):
         request = SetPose.Request()
-        request.x, request.y, request.rot = 0, 0, 0
+        request.position.x, request.position.y, request.orientation.z = 0.0, 0.0, 0.0
         self.set_position_future = self.position_client.call_async(request)
 
     def tick(self):
@@ -217,9 +218,9 @@ class PathVisualizer(Node):
     def handle_set_position_response(self):
         try:
             response = self.set_position_future.result()
-            self.position = (response.x, response.y)
-            self.orientation = response.rot
-            self.waypoints = np.array([0, 0])
+            self.position = (response.position.x, response.position.y)
+            self.orientation = response.orientation.z
+            self.waypoints = [self.position]
         except Exception as e:
             self.get_logger().info(
                 'Set Position Service call failed %r' % (e,))
