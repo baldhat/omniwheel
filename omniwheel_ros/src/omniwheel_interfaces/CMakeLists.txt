@@ -29,5 +29,6 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ControllerValue.msg"
   "srv/EnableMotors.srv"
   "srv/DriveConfig.srv"
+  "srv/SetPose.srv"
 )
 ament_package()

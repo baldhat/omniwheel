@@ -4,7 +4,7 @@ from rclpy.node import Node
 
 from omniwheel_interfaces.msg import ControllerValue
 from geometry_msgs.msg import Pose
-from omniwheel_interfaces.srv import EnableMotors, DriveConfig
+from omniwheel_interfaces.srv import EnableMotors, DriveConfig, SetPose
 
 from serial import Serial
 
@@ -28,9 +28,9 @@ class TeensyNode(Node):
         self.subscription = self.create_subscription(ControllerValue, 'controller_value', self.controller_callback, 10)
         self.enable_service = self.create_service(EnableMotors, 'enable_motors', self.enable_motors_callback)
         self.config_service = self.create_service(DriveConfig, 'drive_config', self.drive_config_callback)
-        # self.position_service = self.create_service() # Used to reset the
+        self.position_service = self.create_service(SetPose, 'set_position', self.set_position_callback)
         self.odometry = self.create_publisher(Pose, 'omniwheel_pose', 10)
-        self.subscription
+
         self.ser = Serial('/dev/ttyACM0', 4000000)
         
         self.velocity = self.getTeensyVelocity()
@@ -89,6 +89,12 @@ class TeensyNode(Node):
                             ';' + str(round(msg.velocity, 2)) + \
                             ';' + str(round(msg.rotation, 2)) + ';}'
         self.ser.write(commandString.encode())
+
+    def set_position_callback(self, request, response):
+        self.position = np.array((request.x, request.y))
+        self.orientation = request.rot
+        response.x, response.y, response.rot = request.x, request.y, request.rot
+        return response
         
     def getTeensyVelocity(self):
         self.ser.write(b'{s}')
