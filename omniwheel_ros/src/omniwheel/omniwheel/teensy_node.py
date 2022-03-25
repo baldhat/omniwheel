@@ -96,11 +96,17 @@ class TeensyNode(Node):
         response.pose.x, response.pose.y, response.pose.rot = request.pose.x, request.pose.y, request.pose.rot
         return response
         
-    def getTeensyVelocity(self):
+    def getTeensyVelocity(self, retry=False):
         self.ser.write(b'{s}')
         while not self.ser.inWaiting():
             pass
-        return float(self.ser.readline())
+        try:
+            value = float(self.ser.readline())
+        except:
+            if not retry:
+                self.ser.write(b'{E}')
+                value = self.getTeensyVelocity(retry=True)
+        return value
         
     def getTeensyAcceleration(self):
         self.ser.write(b'{a}')
