@@ -32,7 +32,8 @@ class TeensyNode(Node):
         self.odometry = self.create_publisher(Pose, 'omniwheel_pose', 10)
 
         self.ser = Serial('/dev/ttyACM0', 4000000)
-        
+
+        self.motors_enabled = False
         self.velocity = self.getTeensyVelocity()
         self.acceleration = self.getTeensyAcceleration()
         self.microsteps = self.getTeensyMicrosteps()
@@ -46,8 +47,10 @@ class TeensyNode(Node):
         if request.enable:
             self.ser.write(b'{I}')
             response.enabled = True
+            self.motors_enabled = True
         else:
             self.ser.write(b'{E}')
+            self.motors_enabled = False
             response.enabled = False
         
         self.get_logger().info('Motors Enabled' if response.enabled else 'Motors Disabled')
@@ -85,10 +88,11 @@ class TeensyNode(Node):
 
     def controller_callback(self, msg):
         self.get_logger().debug('"%f %f %f"' % (msg.direction, msg.velocity, msg.rotation))
-        commandString = '{I;' + str(round(msg.direction, 2)) + \
-                            ';' + str(round(msg.velocity, 2)) + \
-                            ';' + str(round(msg.rotation, 2)) + ';}'
-        self.ser.write(commandString.encode())
+        if self.motors_enabled:
+            commandString = '{I;' + str(round(msg.direction, 2)) + \
+                                ';' + str(round(msg.velocity, 2)) + \
+                                ';' + str(round(msg.rotation, 2)) + ';}'
+            self.ser.write(commandString.encode())
 
     def set_position_callback(self, request, response):
         self.position = np.array((request.pose.x, request.pose.y))
@@ -96,16 +100,15 @@ class TeensyNode(Node):
         response.pose.x, response.pose.y, response.pose.rot = request.pose.x, request.pose.y, request.pose.rot
         return response
         
-    def getTeensyVelocity(self, retry=False):
+    def getTeensyVelocity(self):
         self.ser.write(b'{s}')
         while not self.ser.inWaiting():
             pass
         try:
             value = float(self.ser.readline())
         except:
-            if not retry:
-                self.ser.write(b'{E}')
-                value = self.getTeensyVelocity(retry=True)
+            self.ser.write(b'{E}')
+            value = self.getTeensyVelocity()
         return value
         
     def getTeensyAcceleration(self):
