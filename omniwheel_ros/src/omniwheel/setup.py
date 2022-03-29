@@ -20,11 +20,11 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'controller = omniwheel.controller_publisher:main',
+            'pscontroller = omniwheel.controller.ps_controller:main',
             'teensy_node = omniwheel.teensy_node:main',
-            'keyboard_controller = omniwheel.keyboard_publisher:main',
-            'path_visualizer = omniwheel.path_visualizer:main',
-            'path_executor = omniwheel.path_executor:main'
+            'keyboard_controller = omniwheel.controller.keyboard_controller:main',
+            'path_visualizer = omniwheel.path_visualizer.path_visualizer:main',
+            'path_executor = omniwheel.path_executor.path_executor:main'
         ],
     },
 )

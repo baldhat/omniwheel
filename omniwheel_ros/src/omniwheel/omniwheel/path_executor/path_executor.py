@@ -6,18 +6,12 @@ from rclpy.executors import MultiThreadedExecutor
 import time
 import numpy as np
 import math
-import cmath
+
+from omniwheel.helper.helper import to_polar
 
 from omniwheel_interfaces.action import Waypoints
 from omniwheel_interfaces.msg import Pose, ControllerValue
 from omniwheel_interfaces.srv import EnableMotors
-
-def to_polar(x, y):
-    r = math.sqrt(x ** 2 + y ** 2)
-    if r > 1:
-        r = 1
-    t = cmath.polar(x + y * 1j)[1]
-    return t, r
 
 
 class PathExecutor(Node):

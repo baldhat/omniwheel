@@ -4,77 +4,65 @@ import pygame
 
 import math
 import cmath
+
 import rclpy
 from rclpy.node import Node
 
 from omniwheel_interfaces.msg import ControllerValue
 from omniwheel_interfaces.srv import EnableMotors
 
-
-def to_polar(x, y):
-    r = math.sqrt(x ** 2 + y ** 2)
-    if r > 1:
-        r = 1
-    t = cmath.polar(x + y * 1j)[1]
-    return t, r
+from omniwheel.helper.helper import to_polar
 
 
-class KeyboardPublisher(Node):
-
+class PSController(Node):
+    
     def __init__(self):
-        super().__init__('keyboard_publisher')
+        super().__init__('controller_publisher')
         self.publisher_ = self.create_publisher(ControllerValue, 'controller_value', 10)
         self.enable_motors_client = self.create_client(EnableMotors, 'enable_motors')
         self.enable_motors_future = None
         self.motors_enabled = False
-
+        
         pygame.init()
         pygame.display.init()
-        self.WIDTH = 400
-        self.HEIGHT = 300
-        os.environ['SDL_VIDEO_WINDOW_POS'] = '%i,%i' % (400, 300)
-        self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
-
+        pygame.joystick.init()
+        self.controller = pygame.joystick.Joystick(0)
+        self.controller.init()
+        
         self.last_x = 0
         self.last_y = 0
         self.last_rot = 0
+        
 
-    def run(self):
+    def run(self):     
+        for event in pygame.event.get():
+            if event.type == pygame.JOYAXISMOTION:
+                self.handleJoysticks(event)
+            elif event.type == pygame.JOYBUTTONDOWN:
+                self.handleButtons(event)
+                    
+    def handleJoysticks(self, event):
         x = self.last_x
         y = self.last_y
         rot = self.last_rot
-        for event in pygame.event.get():
-            if event.type == pygame.KEYUP:
-                if event.key == pygame.K_q:
-                    self.last_rot = 0
-                if event.key == pygame.K_e:
-                    self.last_rot = 0
-                if event.key == pygame.K_w:
-                    self.last_y = 0
-                if event.key == pygame.K_a:
-                    self.last_x = 0
-                if event.key == pygame.K_s:
-                    self.last_y = 0
-                if event.key == pygame.K_d:
-                    self.last_x = 0
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_q:
-                    self.last_rot = 1
-                if event.key == pygame.K_e:
-                    self.last_rot = -1
-                if event.key == pygame.K_w:
-                    self.last_y = 1
-                if event.key == pygame.K_a:
-                    self.last_x = -1
-                if event.key == pygame.K_s:
-                    self.last_y = -1
-                if event.key == pygame.K_d:
-                    self.last_x = 1
-                if event.key == pygame.K_SPACE:
-                    self.send_enable_motors(not self.motors_enabled)
+        if event.axis == 0:  # left joystick left right
+            self.last_x = event.value if abs(event.value) > 0.1 else 0
+        if event.axis == 1:  # left joystick up and down
+            self.last_y = - event.value if abs(event.value) > 0.1 else 0
+        if event.axis == 3:  # right joystick left right
+            self.last_rot = - event.value if abs(event.value) > 0.1 else 0
+        if event.axis == 4:  # right joystick up down
+            pass
         if self.last_x != x or self.last_y != y or self.last_rot != rot:
             self.update()
-        pygame.display.flip()
+
+    def handleButtons(self, event):
+        if event.button == 0:
+            self.enableMotors()
+        elif event.button == 3:
+            self.disableMotors()
+        else:
+            self.get_logger().info(event.button)
 
     def update(self):
         new_direction, velocity = to_polar(self.last_x, self.last_y)
@@ -88,12 +76,18 @@ class KeyboardPublisher(Node):
             msg.rotation = float(rotation)
             self.publisher_.publish(msg)
             self.get_logger().debug('"%f %f %f"' % (msg.direction, msg.velocity, msg.rotation))
+        
+    def enableMotors(self):
+        self.send_enable_motors(True)
 
+    def disableMotors(self):
+        self.send_enable_motors(False)
+        
     def send_enable_motors(self, value):
         request = EnableMotors.Request()
         request.enable = value
         self.enable_motors_future = self.enable_motors_client.call_async(request)
-
+        
     def handle_enable_motors_response(self):
         try:
             response = self.enable_motors_future.result()
@@ -109,17 +103,16 @@ class KeyboardPublisher(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    keyboard_publisher = KeyboardPublisher()
-
+    controller_publisher = PSController()
+    
     try:
         while rclpy.ok():
-            keyboard_publisher.run()
-            rclpy.spin_once(keyboard_publisher, timeout_sec=0)
-            if keyboard_publisher.enable_motors_future is not None and keyboard_publisher.enable_motors_future.done():
-                keyboard_publisher.handle_enable_motors_response()
+            controller_publisher.run()
+            rclpy.spin_once(controller_publisher, timeout_sec=0)
+            if controller_publisher.enable_motors_future is not None and controller_publisher.enable_motors_future.done():
+                controller_publisher.handle_enable_motors_response()
     except KeyboardInterrupt:
         print('Bye')
-
 
 if __name__ == '__main__':
     main()
