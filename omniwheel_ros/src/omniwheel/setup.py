@@ -22,9 +22,9 @@ setup(
         'console_scripts': [
             'pscontroller = omniwheel.controller.ps_controller:main',
             'teensy_node = omniwheel.teensy_node:main',
-            'keyboard_controller = omniwheel.controller.keyboard_controller:main',
-            'path_visualizer = omniwheel.path_visualizer.path_visualizer:main',
-            'path_executor = omniwheel.path_executor.path_executor:main'
+            'kbontroller = omniwheel.controller.keyboard_controller:main',
+            'path_vis = omniwheel.path_visualizer.path_visualizer:main',
+            'path_exec = omniwheel.path_executor.path_executor:main'
         ],
     },
 )
