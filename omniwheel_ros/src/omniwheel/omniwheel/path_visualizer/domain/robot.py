@@ -2,7 +2,7 @@ from omniwheel.path_visualizer.domain.pose import Pose
 
 from rclpy.action import ActionClient
 
-from omniwheel_interfaces.msg import Pose as PoseMsg
+from omniwheel_interfaces.msg import Pose as PoseMsg, MotorState
 from omniwheel_interfaces.srv import EnableMotors, SetPose
 from omniwheel_interfaces.action import Waypoints
 
@@ -14,6 +14,7 @@ class Robot:
         self.enable_motors_client = node.create_client(EnableMotors, 'enable_motors')
         self.position_client = node.create_client(SetPose, 'set_position')
         self.waypoint_client = ActionClient(node, Waypoints, 'waypoints')
+        node.create_subscription(MotorState, 'motor_state', self.motor_state_callback, 10)
 
         self.pose = Pose(0, 0, 0)
         self.motors_enabled = False
@@ -74,12 +75,17 @@ class Robot:
         waypoints_result_future.add_done_callback(self.waypoints_result_callback)
 
     def waypoints_result_callback(self, future):
-        result = future.result()
+        result = future.result().result
+        self.node.get_logger().info('Finished waypoint missiong on pose: ' + str(result.final_pose))
         self.planned_poses = []
 
     def waypoints_feedback_callback(self, feedback):
-        pose = feedback.feedback.completed_pose
+        self.node.get_logger().info('Reached waypoint: ' + str(feedback.feedback.completed_pose))
         self.planned_poses.pop(0)
+
+    def motor_state_callback(self, msg):
+        self.motors_enabled = msg.enabled
+        self.node.get_logger().info('Motors Enabled' if self.motors_enabled else 'Motors Disabled')
 
     def handle_enable_motors_response(self, future):
         try:

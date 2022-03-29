@@ -2,7 +2,7 @@ import rclpy
 import numpy as np
 from rclpy.node import Node
 
-from omniwheel_interfaces.msg import ControllerValue, Pose
+from omniwheel_interfaces.msg import ControllerValue, Pose, MotorState
 from omniwheel_interfaces.srv import EnableMotors, DriveConfig, SetPose
 
 from serial import Serial
@@ -10,8 +10,8 @@ from serial import Serial
 
 class TeensyNode(Node):
     """
-    This class represents the interface between the ROS graph and the Teensy driving the stepper motors, which connected
-    via a serial connection.
+    This class represents the interface between the ROS graph and the Teensy driving the stepper motors, which is
+     connected via a serial connection.
 
     ROS subscriber:
         - /controller_value
@@ -29,6 +29,7 @@ class TeensyNode(Node):
         self.config_service = self.create_service(DriveConfig, 'drive_config', self.drive_config_callback)
         self.position_service = self.create_service(SetPose, 'set_position', self.set_position_callback)
         self.odometry = self.create_publisher(Pose, 'omniwheel_pose', 10)
+        self.enable_publisher = self.create_publisher(MotorState, 'motor_state', 10)
 
         self.ser = Serial('/dev/ttyACM0', 4000000)
 
@@ -53,6 +54,10 @@ class TeensyNode(Node):
             self.ser.write(b'{E}')
             self.motors_enabled = False
             response.enabled = False
+
+        message = MotorState()
+        message.enabled = response.enabled
+        self.enable_publisher.publish(message)
         
         self.get_logger().info('Motors Enabled' if response.enabled else 'Motors Disabled')
 
