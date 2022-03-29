@@ -36,18 +36,16 @@ class PathExecutor(Node):
         self.MAX_POS_ERROR = 0.01
         self.MAX_ROT_ERROR = 0.01
 
+        self.shouldStop = False
+
     def execute_callback(self, goal_handle):
         self.get_logger().info("Executing waypoint mission")
-
-        feedback_msg = Waypoints.Feedback()
-        feedback_msg.completed_poses = []
 
         self.send_enable_motors(True)
 
         for pose in goal_handle.request.poses:
             self.drive_to_pose(pose)
-            feedback_msg.completed_poses.append(self.pose)
-            goal_handle.publish_feedback(feedback_msg)
+            self.send_feedback(goal_handle)
 
         self.send_enable_motors(False)
 
@@ -57,6 +55,11 @@ class PathExecutor(Node):
         result.final_pose = self.pose
         return result
 
+    def send_feedback(self, goal_handle):
+        feedback_msg = Waypoints.Feedback()
+        feedback_msg.completed_pose = self.pose
+        goal_handle.publish_feedback(feedback_msg)
+
     def send_enable_motors(self, value):
         request = EnableMotors.Request()
         request.enable = value
@@ -64,11 +67,13 @@ class PathExecutor(Node):
         self.motors_enabled = response.enabled
 
     def drive_to_pose(self, pose: Pose):
-        self.get_logger().info("Driving to pose " + str(pose) + " from current pose " + str(self.pose))
-        while self.distanceTo(pose) > self.MAX_POS_ERROR or self.angularOffset(pose) > self.MAX_ROT_ERROR:
+        while not self.poseReached(pose) and not self.shouldStop:
             direction, velocity, rotation = self.calculateControllerValue(pose)
             self.sendControllerValue(direction, velocity, rotation)
             time.sleep(0.05)
+
+    def poseReached(self, pose):
+        return self.distanceTo(pose) < self.MAX_POS_ERROR and self.angularOffset(pose) < self.MAX_ROT_ERROR
 
     def calculateControllerValue(self, pose: Pose):
         dx = pose.x - self.pose.x
@@ -85,7 +90,6 @@ class PathExecutor(Node):
             direction = 0
             velocity = 0
             rotation = drot/abs(drot) if abs(drot) > 1 else drot
-            self.get_logger().info("Current Pose: " + str(self.pose) + " Target pose: " + str(pose))
         return direction, velocity, rotation
 
     def distanceTo(self, pose: Pose):
@@ -126,7 +130,10 @@ def main(args=None):
     executor = MultiThreadedExecutor(num_threads=4)
     executor.add_node(path_executor)
     executor.add_node(executorPoseSubscriber)
-    executor.spin()
+    try:
+        executor.spin()
+    except KeyboardInterrupt:
+        path_executor.shouldStop = True
 
 
 if __name__ == '__main__':

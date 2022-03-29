@@ -3,13 +3,16 @@ os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 import math
 import cmath
+import numpy as np
 
 import rclpy
-import numpy as np
 from rclpy.node import Node
+from rclpy.action import ActionClient
 
 from omniwheel_interfaces.msg import ControllerValue, Pose
 from omniwheel_interfaces.srv import EnableMotors, SetPose
+from omniwheel_interfaces.action import Waypoints
+
 
 DARKGRAY = (100, 100, 100)
 
@@ -31,6 +34,9 @@ class PathVisualizer(Node):
         self.enable_motors_future = None
         self.position_client = self.create_client(SetPose, 'set_position')
         self.set_position_future = None
+        self.waypoint_client = ActionClient(self, Waypoints, 'waypoints')
+        self.send_waypoints_future = None
+        self.waypoints_result_future = None
 
         pygame.init()
         pygame.display.init()
@@ -55,7 +61,10 @@ class PathVisualizer(Node):
         self.orientation = 0
 
         self.MAP_SCALE = 100
-        self.waypoints = [(0, 0)]
+        self.past_positions = [(0, 0)]
+
+        self.planned_waypoints: [Pose] = []
+        self.shift_down = False
 
         self.middle_mouse_down = False
         self.display_offset = np.array([self.WIDTH / 2.2, self.HEIGHT / 2])
@@ -63,11 +72,12 @@ class PathVisualizer(Node):
     def pose_callback(self, msg):
         self.orientation = msg.rot
         self.position = (msg.x, msg.y)
-        self.waypoints.append(self.position)
+        self.past_positions.append(self.position)
 
     def render(self):
         self.screen.fill(DARKGRAY)
         self.drawPath()
+        self.drawWaypoints()
         self.renderRobot()
         pygame.display.flip()
         self.clock.tick(20)
@@ -88,12 +98,18 @@ class PathVisualizer(Node):
         self.screen.blit(rotated_image, new_rect)
 
     def drawPath(self):
-        self.waypoints[0] = (0, 0)
-        for i, value in enumerate(self.waypoints):
-            if i < len(self.waypoints) - 1:
+        self.past_positions[0] = (0, 0)
+        for i, value in enumerate(self.past_positions):
+            if i < len(self.past_positions) - 1:
                 start = self.toPixelPos(value)
-                end = self.toPixelPos(self.waypoints[i + 1])
+                end = self.toPixelPos(self.past_positions[i + 1])
                 pygame.draw.line(self.screen, (0, 0, 255), start, end)
+
+    def drawWaypoints(self):
+        for i, pose in enumerate(self.planned_waypoints):
+            start = self.toPixelPos(self.position) if i == 0 else self.toPixelPos((self.planned_waypoints[i-1].x, self.planned_waypoints[i-1].y))
+            end = self.toPixelPos((pose.x, pose.y))
+            pygame.draw.line(self.screen, (0, 255, 0), start, end)
 
     def resetPosition(self):
         request = SetPose.Request()
@@ -157,12 +173,14 @@ class PathVisualizer(Node):
             self.last_y = 0
         if event.key == pygame.K_d:
             self.last_x = 0
+        if event.key == pygame.K_LSHIFT:
+            self.send_planned_waypoints()
 
     def handleMouseDown(self, event):
         if event.button == 2: # middle mouse button
             self.middle_mouse_down = True
         if event.button == 1:
-            self.go_to_click(event)
+            self.handle_left_click(event)
 
     def handleMouseUp(self, event):
         if event.button == 2: # middle mouse button
@@ -175,8 +193,13 @@ class PathVisualizer(Node):
     def zoom(self, y):
         self.MAP_SCALE *= 2 if y > 0 else 0.5
 
-    def go_to_click(self, event):
-        self.get_logger().info(str(self.toRealPos(event.pos)))
+    def handle_left_click(self, event):
+        x, y = self.toRealPos(event.pos)
+        new_pose = Pose()
+        new_pose.x, new_pose.y, new_pose.rot = float(x), float(y), float(self.orientation)
+        self.planned_waypoints.append(new_pose)
+        if not pygame.key.get_pressed()[pygame.K_LSHIFT]:
+            self.send_planned_waypoints()
 
     def update(self):
         new_direction, rotation, velocity = self.calculateControllerValue()
@@ -202,6 +225,36 @@ class PathVisualizer(Node):
         request.enable = value
         self.enable_motors_future = self.enable_motors_client.call_async(request)
 
+    def send_planned_waypoints(self):
+        if len(self.planned_waypoints) > 0:
+            goal = Waypoints.Goal()
+            goal.poses = self.planned_waypoints
+            self.waypoint_client.wait_for_server()
+            self.send_waypoints_future = self.waypoint_client.send_goal_async(goal, feedback_callback=self.waypoints_feedback_callback)
+            self.send_waypoints_future.add_done_callback(self.waypoints_goal_response_callback)
+
+    def waypoints_goal_response_callback(self, future):
+        goal_handle = future.result()
+        if not goal_handle.accepted:
+            self.get_logger().info('Goal rejected')
+            self.planned_waypoints = []
+            return
+
+        self.get_logger().info('Goal accepted')
+        self.waypoints_result_future = goal_handle.get_result_async()
+        self.waypoints_result_future.add_done_callback(self.waypoints_result_callback)
+
+    def waypoints_result_callback(self, future):
+        result = future.result()
+        self.planned_waypoints = []
+
+    def waypoints_feedback_callback(self, feedback):
+        pose = feedback.feedback.completed_pose
+        if round(self.planned_waypoints[0].x, 1) == round(pose.x, 1) \
+                and round(self.planned_waypoints[0].y, 1) == round(pose.y, 1) \
+                and round(self.planned_waypoints[0].rot, 1) == round(pose.rot, 1):
+            self.planned_waypoints.pop(0)
+
     def handle_enable_motors_response(self):
         try:
             response = self.enable_motors_future.result()
@@ -218,13 +271,15 @@ class PathVisualizer(Node):
             response = self.set_position_future.result()
             self.position = (response.pose.x, response.pose.y)
             self.orientation = response.pose.rot
-            self.waypoints = [self.position]
+            self.past_positions = [self.position]
         except Exception as e:
             self.get_logger().info(
                 'Set Position Service call failed %r' % (e,))
         else:
             self.get_logger().info('Reset Position')
         self.set_position_future = None
+
+
 
     def checkServiceResponses(self):
         if self.enable_motors_future is not None and self.enable_motors_future.done():
