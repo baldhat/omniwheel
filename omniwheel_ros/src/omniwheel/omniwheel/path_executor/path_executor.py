@@ -76,14 +76,14 @@ class PathExecutor(Node):
         dist = np.sqrt(dx**2 + dy**2)
         if dist > self.MAX_POS_ERROR:
             direction = to_polar(dx, dy)[0] - math.pi / 2 - self.pose.rot
-            velocity = 1 if dist > 0.5 else 2 * dist
+            velocity = 1 if dist > 0.2 else 5 * dist
             if velocity < 0.1:
                 velocity = 0.1
             rotation = 0
         else:
             direction = 0
             velocity = 0
-            rotation = drot/abs(drot) if abs(drot) > 1 else drot
+            rotation = drot/abs(drot) if abs(drot) > 0.5 else 2*drot
         return direction, velocity, rotation
 
     def distanceTo(self, pose: Pose):
@@ -99,31 +99,27 @@ class PathExecutor(Node):
         msg.rotation = float(rotation)
         self.publisher_.publish(msg)
 
-    def checkServiceResponses(self):
-        if self.enable_motors_future is not None and self.enable_motors_future.done():
-            self.handle_enable_motors_response()
-
 
 class PathExecutorPoseSubscriber(Node):
 
-    def __init__(self, pathExecutor):
+    def __init__(self, path_executor):
         super().__init__('path_executor_pose_subscriber')
         self.pose_subscription = self.create_subscription(Pose, 'omniwheel_pose', self.pose_callback, 10)
-        self.pathExecutor = pathExecutor
+        self.path_executor = path_executor
 
     def pose_callback(self, msg):
-        self.pathExecutor.pose = msg
+        self.path_executor.pose = msg
 
 
 def main(args=None):
     rclpy.init(args=args)
 
     path_executor = PathExecutor()
-    executorPoseSubscriber = PathExecutorPoseSubscriber(path_executor)
+    executor_pose_subscriber = PathExecutorPoseSubscriber(path_executor)
 
     executor = MultiThreadedExecutor(num_threads=4)
     executor.add_node(path_executor)
-    executor.add_node(executorPoseSubscriber)
+    executor.add_node(executor_pose_subscriber)
     try:
         executor.spin()
     except KeyboardInterrupt:

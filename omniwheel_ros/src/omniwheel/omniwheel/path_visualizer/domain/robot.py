@@ -14,6 +14,7 @@ class Robot:
         self.enable_motors_client = node.create_client(EnableMotors, 'enable_motors')
         self.position_client = node.create_client(SetPose, 'set_position')
         self.waypoint_client = ActionClient(node, Waypoints, 'waypoints')
+        self.waypoint_goal_handle = None
         node.create_subscription(MotorState, 'motor_state', self.motor_state_callback, 10)
 
         self.pose = Pose(0, 0, 0)
@@ -35,6 +36,7 @@ class Robot:
         enable_motors_future.add_done_callback(self.handle_enable_motors_response)
 
     def resetPosition(self):
+        self.cancel_waypoint_mission()
         request = SetPose.Request()
         request.pose.x, request.pose.y, request.pose.rot = 0.0, 0.0, 0.0
         set_position_future = self.position_client.call_async(request)
@@ -64,24 +66,30 @@ class Robot:
             send_waypoints_future.add_done_callback(self.waypoints_goal_response_callback)
 
     def waypoints_goal_response_callback(self, future):
-        goal_handle = future.result()
-        if not goal_handle.accepted:
+        self.waypoint_goal_handle = future.result()
+        if not self.waypoint_goal_handle.accepted:
             self.node.get_logger().info('Goal rejected')
             self.planned_poses = []
+            self.waypoint_goal_handle = None
             return
 
         self.node.get_logger().info('Goal accepted')
-        waypoints_result_future = goal_handle.get_result_async()
+        waypoints_result_future = self.waypoint_goal_handle.get_result_async()
         waypoints_result_future.add_done_callback(self.waypoints_result_callback)
 
     def waypoints_result_callback(self, future):
         result = future.result().result
-        self.node.get_logger().info('Finished waypoint missiong on pose: ' + str(result.final_pose))
+        self.node.get_logger().info('Finished waypoint mission on pose: ' + str(result.final_pose))
         self.planned_poses = []
+        self.waypoint_goal_handle = None
 
     def waypoints_feedback_callback(self, feedback):
         self.node.get_logger().info('Reached waypoint: ' + str(feedback.feedback.completed_pose))
         self.planned_poses.pop(0)
+
+    def cancel_waypoint_mission(self):
+        self.waypoint_goal_handle.cancel_goal()
+        self.node.get_logger().info("Cancelled waypoint mission")
 
     def motor_state_callback(self, msg):
         self.motors_enabled = msg.enabled
