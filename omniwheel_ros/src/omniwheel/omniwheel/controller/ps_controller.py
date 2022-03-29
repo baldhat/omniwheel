@@ -32,7 +32,8 @@ class PSController(Node):
         self.last_x = 0
         self.last_y = 0
         self.last_rot = 0
-        
+
+        self.get_logger().info("Ready...")
 
     def run(self):     
         for event in pygame.event.get():
@@ -113,6 +114,7 @@ def main(args=None):
                 controller_publisher.handle_enable_motors_response()
     except KeyboardInterrupt:
         print('Bye')
+
 
 if __name__ == '__main__':
     main()
