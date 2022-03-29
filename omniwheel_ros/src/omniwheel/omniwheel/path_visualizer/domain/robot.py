@@ -88,8 +88,10 @@ class Robot:
         self.planned_poses.pop(0)
 
     def cancel_waypoint_mission(self):
-        self.waypoint_goal_handle.cancel_goal()
-        self.node.get_logger().info("Cancelled waypoint mission")
+        if self.waypoint_goal_handle is not None:
+            future = self.waypoint_goal_handle.cancel_goal_async()
+            future.add_done_callback(lambda _: self.node.get_logger().info("Cancelled"))
+            self.planned_poses = []
 
     def motor_state_callback(self, msg):
         self.motors_enabled = msg.enabled

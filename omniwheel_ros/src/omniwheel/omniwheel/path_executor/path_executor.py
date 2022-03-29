@@ -18,7 +18,9 @@ class PathExecutor(Node):
 
     def __init__(self):
         super().__init__('path_executor')
-        self._action_server = ActionServer(self, Waypoints, 'waypoints', self.execute_callback)
+        self._action_server = ActionServer(self, Waypoints, 'waypoints',
+                                           self.execute_callback,
+                                           cancel_callback=self.cancel_callback)
         self.publisher_ = self.create_publisher(ControllerValue, 'controller_value', 10)
         self.enable_motors_client = self.create_client(EnableMotors, 'enable_motors')
         self.enable_motors_future = None
@@ -31,9 +33,11 @@ class PathExecutor(Node):
         self.MAX_ROT_ERROR = 0.01
 
         self.shouldStop = False
+        self.last_tick = time.time_ns()
 
     def execute_callback(self, goal_handle):
         self.get_logger().info("Executing waypoint mission")
+        self.shouldStop = False
 
         self.send_enable_motors(True)
 
@@ -48,6 +52,12 @@ class PathExecutor(Node):
         result = Waypoints.Result()
         result.final_pose = self.pose
         return result
+
+    def cancel_callback(self, cancel_handle):
+        self.get_logger().info("Cancelling waypoint mission")
+        self.send_enable_motors(False)
+        self.shouldStop = True
+        return 2
 
     def send_feedback(self, goal_handle):
         feedback_msg = Waypoints.Feedback()
@@ -99,7 +109,6 @@ class PathExecutor(Node):
         msg.rotation = float(rotation)
         self.publisher_.publish(msg)
 
-
 class PathExecutorPoseSubscriber(Node):
 
     def __init__(self, path_executor):
@@ -122,8 +131,11 @@ def main(args=None):
     executor.add_node(executor_pose_subscriber)
     try:
         executor.spin()
-    except KeyboardInterrupt:
+    finally:
         path_executor.shouldStop = True
+        executor.shutdown()
+        path_executor.destroy_node()
+        executor_pose_subscriber.destroy_node()
 
 
 if __name__ == '__main__':
