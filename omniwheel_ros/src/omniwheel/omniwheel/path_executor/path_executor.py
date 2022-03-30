@@ -19,8 +19,7 @@ class PathExecutor(Node):
     def __init__(self):
         super().__init__('path_executor')
         self._action_server = ActionServer(self, Waypoints, 'waypoints',
-                                           self.execute_callback,
-                                           cancel_callback=self.cancel_callback)
+                                           self.execute_callback)
         self.publisher_ = self.create_publisher(ControllerValue, 'controller_value', 10)
         self.enable_motors_client = self.create_client(EnableMotors, 'enable_motors')
         self.enable_motors_future = None
@@ -30,7 +29,7 @@ class PathExecutor(Node):
         self.motors_enabled = False
 
         self.MAX_POS_ERROR = 0.01
-        self.MAX_ROT_ERROR = 0.05
+        self.MAX_ROT_ERROR = 0.01
 
         self.shouldStop = False
         self.last_tick = time.time_ns()
@@ -53,12 +52,6 @@ class PathExecutor(Node):
         result.final_pose = self.pose
         return result
 
-    def cancel_callback(self, cancel_handle):
-        self.get_logger().info("Cancelling waypoint mission")
-        self.send_enable_motors(False)
-        self.shouldStop = True
-        return 2
-
     def send_feedback(self, goal_handle):
         feedback_msg = Waypoints.Feedback()
         feedback_msg.completed_pose = self.pose
@@ -77,13 +70,12 @@ class PathExecutor(Node):
             time.sleep(0.05)
 
     def poseReached(self, pose):
-        return self.distanceTo(pose) < self.MAX_POS_ERROR and self.angularOffset(pose) < self.MAX_ROT_ERROR
+        return self.distanceTo(pose) <= self.MAX_POS_ERROR and abs(self.getRotDistance(pose)) <= self.MAX_ROT_ERROR
 
     def calculateControllerValue(self, pose: Pose):
         dx = pose.x - self.pose.x
         dy = pose.y - self.pose.y
-        drot = (pose.rot - self.pose.rot if pose.rot > self.pose.rot else self.pose.rot - pose.rot) % (2 * math.pi)
-        drot = -(2 * math.pi - drot if drot > math.pi else drot)
+        drot = self.getRotDistance(pose)
         dist = np.sqrt(dx**2 + dy**2)
         if dist > self.MAX_POS_ERROR:
             direction = to_polar(dx, dy)[0] - math.pi / 2 - self.pose.rot
@@ -94,13 +86,15 @@ class PathExecutor(Node):
         else:
             direction = 0
             velocity = 0
-            rotation = (drot/abs(drot) if abs(drot) > 0.5 else 2*drot)
-            self.get_logger().info("Current rot: {0}, target rot: {1}, drot: {2}, rotation: {3}"
-                                   .format(self.pose.rot, pose.rot, str(drot), rotation))
+            rotation = - (drot/abs(drot) if abs(drot) > 0.5 else 2*drot)
         return direction, velocity, rotation
 
     def distanceTo(self, pose: Pose):
         return np.sqrt((pose.x - self.pose.x)**2 + (pose.y - self.pose.y)**2)
+
+    def getRotDistance(self, pose):
+        drot = (pose.rot - self.pose.rot if pose.rot > self.pose.rot else self.pose.rot - pose.rot) % (2 * math.pi)
+        return (2 * math.pi - drot) if drot > math.pi else drot
 
     def angularOffset(self, pose: Pose):
         return abs(pose.rot - self.pose.rot) % (2 * math.pi)
@@ -136,7 +130,6 @@ def main(args=None):
     try:
         executor.spin()
     finally:
-        path_executor.shouldStop = True
         executor.shutdown()
         path_executor.destroy_node()
         executor_pose_subscriber.destroy_node()

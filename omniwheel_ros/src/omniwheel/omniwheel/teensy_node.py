@@ -39,11 +39,17 @@ class TeensyNode(Node):
         self.microsteps = self.getTeensyMicrosteps()
         self.position = np.zeros(2)
         self.orientation = 0
+        self.odometry_timer = self.create_timer(0.05, self.timer_callback)
         
         self.MOTOR_REVS_PER_METER = 47.5
         self.RADIUS = 0.135
 
         self.get_logger().info("Ready...")
+
+    def timer_callback(self):
+        message = Pose()
+        message.x, message.y, message.rot = self.position[0], self.position[1], self.orientation
+        self.odometry.publish(message)
         
     def enable_motors_callback(self, request, response):
         if request.enable:
@@ -152,9 +158,6 @@ class TeensyNode(Node):
             dx = dist * np.cos(alpha + self.orientation + np.pi / 2)
             dy = dist * np.sin(alpha + self.orientation + np.pi / 2)
             self.position += np.array([dx, dy])
-            message = Pose()
-            message.x, message.y, message.rot = self.position[0], self.position[1], self.orientation
-            self.odometry.publish(message)
 
 
 def main(args=None):
