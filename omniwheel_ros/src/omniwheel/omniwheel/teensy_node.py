@@ -7,6 +7,8 @@ from omniwheel_interfaces.srv import EnableMotors, DriveConfig, SetPose
 
 from serial import Serial
 
+import time
+
 
 class TeensyNode(Node):
     """
@@ -40,6 +42,8 @@ class TeensyNode(Node):
         self.position = np.zeros(2)
         self.orientation = 0
         self.odometry_timer = self.create_timer(0.05, self.timer_callback)
+
+        self.last_twist_command = time.time()
         
         self.MOTOR_REVS_PER_METER = 47.5
         self.RADIUS = 0.135
@@ -50,6 +54,12 @@ class TeensyNode(Node):
         message = Pose()
         message.x, message.y, message.rot = float(self.position[0]), float(self.position[1]), float(self.orientation)
         self.odometry.publish(message)
+        if time.time() - self.last_twist_command > 0.1:
+            self.soft_stop()
+
+    def soft_stop(self):
+        commandString = '{I;0.0;0.0;0.0;}'
+        self.ser.write(commandString.encode())
         
     def enable_motors_callback(self, request, response):
         if request.enable:

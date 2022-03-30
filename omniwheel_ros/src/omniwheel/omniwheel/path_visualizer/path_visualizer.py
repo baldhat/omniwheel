@@ -1,3 +1,4 @@
+import time
 
 import pygame
 import math
@@ -28,6 +29,7 @@ class PathVisualizer(Node):
         self.last_x = 0
         self.last_y = 0
         self.last_rot = 0
+        self.last_update = 0.0
 
         self.shift_down = False
         self.middle_mouse_down = False
@@ -54,7 +56,7 @@ class PathVisualizer(Node):
                 self.handleMouseMotion(event)
             if event.type == pygame.QUIT:
                 self.running = False
-        if self.hasValueChanged(rot, x, y):
+        if self.hasValueChanged(rot, x, y) or time.time() - self.last_update > 0.05:
             self.update()
 
     def hasValueChanged(self, rot, x, y):
@@ -111,6 +113,7 @@ class PathVisualizer(Node):
     def update(self):
         new_direction, rotation, velocity = self.calculateControllerValue()
         self.publishControllerValue(new_direction, rotation, velocity)
+        self.last_update = time.time()
 
     def calculateControllerValue(self):
         new_direction, velocity = to_polar(self.last_x, self.last_y)
