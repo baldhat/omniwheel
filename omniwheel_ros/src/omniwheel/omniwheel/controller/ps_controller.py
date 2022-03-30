@@ -3,7 +3,7 @@ os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 
 import math
-import cmath
+import time
 
 import rclpy
 from rclpy.node import Node
@@ -20,7 +20,6 @@ class PSController(Node):
         super().__init__('controller_publisher')
         self.publisher_ = self.create_publisher(ControllerValue, 'controller_value', 10)
         self.enable_motors_client = self.create_client(EnableMotors, 'enable_motors')
-        self.enable_motors_future = None
         self.motors_enabled = False
         
         pygame.init()
@@ -54,8 +53,11 @@ class PSController(Node):
             self.last_rot = - event.value if abs(event.value) > 0.1 else 0
         if event.axis == 4:  # right joystick up down
             pass
-        if self.last_x != x or self.last_y != y or self.last_rot != rot:
+        if self.hasValueChanged(rot, x, y) or time.time() - self.last_update > 0.05:
             self.update()
+
+    def hasValueChanged(self, rot, x, y):
+        return self.last_x != x or self.last_y != y or self.last_rot != rot
 
     def handleButtons(self, event):
         if event.button == 0:
@@ -87,18 +89,18 @@ class PSController(Node):
     def send_enable_motors(self, value):
         request = EnableMotors.Request()
         request.enable = value
-        self.enable_motors_future = self.enable_motors_client.call_async(request)
+        enable_motors_future = self.enable_motors_client.call_async(request)
+        enable_motors_future.add_done_callback(self.handle_enable_motors_response)
         
-    def handle_enable_motors_response(self):
+    def handle_enable_motors_response(self, future):
         try:
-            response = self.enable_motors_future.result()
+            response = future.result()
             self.motors_enabled = response.enabled
         except Exception as e:
             self.get_logger().info(
                 'Service call failed %r' % (e,))
         else:
             self.get_logger().info('Motors Enabled' if response.enabled else 'Motors Disabled')
-        self.enable_motors_future = None
 
 
 def main(args=None):
@@ -109,9 +111,7 @@ def main(args=None):
     try:
         while rclpy.ok():
             controller_publisher.run()
-            rclpy.spin_once(controller_publisher, timeout_sec=0)
-            if controller_publisher.enable_motors_future is not None and controller_publisher.enable_motors_future.done():
-                controller_publisher.handle_enable_motors_response()
+            rclpy.spin_once(controller_publisher, timeout_sec=0.04)
     except KeyboardInterrupt:
         print('Bye')
 

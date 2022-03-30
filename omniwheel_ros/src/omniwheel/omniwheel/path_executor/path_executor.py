@@ -29,7 +29,7 @@ class PathExecutor(Node):
         self.motors_enabled = False
 
         self.MAX_POS_ERROR = 0.01
-        self.MAX_ROT_ERROR = 0.01
+        self.MAX_ROT_ERROR = 0.02
 
         self.shouldStop = False
         self.last_tick = time.time_ns()
@@ -77,16 +77,15 @@ class PathExecutor(Node):
         dy = pose.y - self.pose.y
         drot = self.getRotDistance(pose)
         dist = np.sqrt(dx**2 + dy**2)
-        if dist > self.MAX_POS_ERROR:
-            direction = to_polar(dx, dy)[0] - math.pi / 2 - self.pose.rot
+        direction = to_polar(dx, dy)[0] - math.pi / 2 - self.pose.rot
+        if self.distanceTo(pose) > self.MAX_POS_ERROR:
             velocity = 1 if dist > 0.2 else 5 * dist
-            if velocity < 0.1:
-                velocity = 0.1
-            rotation = 0
         else:
-            direction = 0
             velocity = 0
+        if self.getRotDistance(pose) > self.MAX_ROT_ERROR:
             rotation = - (drot/abs(drot) if abs(drot) > 0.5 else 2*drot)
+        else:
+            rotation = 0
         return direction, velocity, rotation
 
     def distanceTo(self, pose: Pose):
