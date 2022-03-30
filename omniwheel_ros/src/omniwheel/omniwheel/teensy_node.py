@@ -60,6 +60,7 @@ class TeensyNode(Node):
     def soft_stop(self):
         commandString = '{I;0.0;0.0;0.0;}'
         self.ser.write(commandString.encode())
+        self.get_logger().info("Soft Stopped")
         
     def enable_motors_callback(self, request, response):
         if request.enable:
@@ -115,6 +116,7 @@ class TeensyNode(Node):
                                 ';' + str(round(msg.velocity, 2)) + \
                                 ';' + str(round(msg.rotation, 2)) + ';}'
             self.ser.write(commandString.encode())
+            self.last_twist_command = time.time()
 
     def set_position_callback(self, request, response):
         self.position = np.array((request.pose.x, request.pose.y))
