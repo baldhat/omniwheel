@@ -54,7 +54,7 @@ class TeensyNode(Node):
         message = Pose()
         message.x, message.y, message.rot = float(self.position[0]), float(self.position[1]), float(self.orientation)
         self.odometry.publish(message)
-        if time.time() - self.last_twist_command > 0.1:
+        if time.time() - self.last_twist_command > 0.1 and self.motors_enabled:
             self.soft_stop()
 
     def soft_stop(self):
