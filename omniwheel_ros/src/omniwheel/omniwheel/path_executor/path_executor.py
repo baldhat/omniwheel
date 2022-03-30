@@ -30,7 +30,7 @@ class PathExecutor(Node):
         self.motors_enabled = False
 
         self.MAX_POS_ERROR = 0.01
-        self.MAX_ROT_ERROR = 0.01
+        self.MAX_ROT_ERROR = 0.05
 
         self.shouldStop = False
         self.last_tick = time.time_ns()
@@ -82,7 +82,8 @@ class PathExecutor(Node):
     def calculateControllerValue(self, pose: Pose):
         dx = pose.x - self.pose.x
         dy = pose.y - self.pose.y
-        drot = pose.rot - self.pose.rot
+        drot = (pose.rot - self.pose.rot if pose.rot > self.pose.rot else self.pose.rot - pose.rot) % (2 * math.pi)
+        drot = -(2 * math.pi - drot if drot > math.pi else drot)
         dist = np.sqrt(dx**2 + dy**2)
         if dist > self.MAX_POS_ERROR:
             direction = to_polar(dx, dy)[0] - math.pi / 2 - self.pose.rot
@@ -93,7 +94,9 @@ class PathExecutor(Node):
         else:
             direction = 0
             velocity = 0
-            rotation = drot/abs(drot) if abs(drot) > 0.5 else 2*drot
+            rotation = (drot/abs(drot) if abs(drot) > 0.5 else 2*drot)
+            self.get_logger().info("Current rot: {0}, target rot: {1}, drot: {2}, rotation: {3}"
+                                   .format(self.pose.rot, pose.rot, str(drot), rotation))
         return direction, velocity, rotation
 
     def distanceTo(self, pose: Pose):
@@ -108,6 +111,7 @@ class PathExecutor(Node):
         msg.velocity = float(velocity)
         msg.rotation = float(rotation)
         self.publisher_.publish(msg)
+
 
 class PathExecutorPoseSubscriber(Node):
 
