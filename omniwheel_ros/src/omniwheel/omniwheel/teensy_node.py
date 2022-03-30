@@ -48,7 +48,7 @@ class TeensyNode(Node):
 
     def timer_callback(self):
         message = Pose()
-        message.x, message.y, message.rot = self.position[0], self.position[1], self.orientation
+        message.x, message.y, message.rot = float(self.position[0]), float(self.position[1]), float(self.orientation)
         self.odometry.publish(message)
         
     def enable_motors_callback(self, request, response):
