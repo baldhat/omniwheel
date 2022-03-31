@@ -44,7 +44,7 @@ class TeensyNode(Node):
         self.position = np.zeros(2)
         self.orientation = 0
         self.odometry_timer = self.create_timer(0.05, self.odom_timer_callback)
-        self.battery_timer = self.create_timer(60, self.battery_timer_callback)
+        self.battery_timer = self.create_timer(5, self.battery_timer_callback)
 
         self.last_twist_command = time.time()
         

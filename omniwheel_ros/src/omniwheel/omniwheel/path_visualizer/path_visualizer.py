@@ -31,6 +31,8 @@ class PathVisualizer(Node):
         self.last_rot = 0
         self.last_update = 0.0
 
+        self.move_keys = [pygame.K_w, pygame.K_a, pygame.K_s, pygame.K_d, pygame.K_q, pygame.K_e]
+
         self.shift_down = False
         self.middle_mouse_down = False
 
@@ -56,8 +58,12 @@ class PathVisualizer(Node):
                 self.handleMouseMotion(event)
             if event.type == pygame.QUIT:
                 self.running = False
-        if self.hasValueChanged(rot, x, y) or time.time() - self.last_update > 0.05:
+        if self.shouldUpdateControllerValue(rot, x, y):
             self.update()
+
+    def shouldUpdateControllerValue(self, rot, x, y):
+        return self.hasValueChanged(rot, x, y) or (
+                    time.time() - self.last_update > 0.05 and (rot != 0 or x != 0 or y != 0))
 
     def hasValueChanged(self, rot, x, y):
         return self.last_x != x or self.last_y != y or self.last_rot != rot

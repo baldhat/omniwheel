@@ -32,6 +32,8 @@ class PSController(Node):
         self.last_y = 0
         self.last_rot = 0
 
+        self.last_update = time.time()
+
         self.get_logger().info("Ready...")
 
     def run(self):     
@@ -53,7 +55,7 @@ class PSController(Node):
             self.last_rot = - event.value if abs(event.value) > 0.1 else 0
         if event.axis == 4:  # right joystick up down
             pass
-        if self.hasValueChanged(rot, x, y) or time.time() - self.last_update > 0.05:
+        if self.hasValueChanged(rot, x, y) or (time.time() - self.last_update > 0.05 and (x != 0 or y != 0 or rot != 0)):
             self.update()
 
     def hasValueChanged(self, rot, x, y):
@@ -79,6 +81,7 @@ class PSController(Node):
             msg.rotation = float(rotation)
             self.publisher_.publish(msg)
             self.get_logger().debug('"%f %f %f"' % (msg.direction, msg.velocity, msg.rotation))
+            self.last_update = time.time()
         
     def enableMotors(self):
         self.send_enable_motors(True)

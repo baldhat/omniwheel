@@ -79,7 +79,7 @@ class PathExecutor(Node):
         dist = np.sqrt(dx**2 + dy**2)
         direction = to_polar(dx, dy)[0] - math.pi / 2 - self.pose.rot
         if self.distanceTo(pose) > self.MAX_POS_ERROR:
-            velocity = 1 if dist > 0.2 else 5 * dist
+            velocity = 1 #if dist > 0.2 else 5 * dist
         else:
             velocity = 0
         if self.getRotDistance(pose) > self.MAX_ROT_ERROR:
