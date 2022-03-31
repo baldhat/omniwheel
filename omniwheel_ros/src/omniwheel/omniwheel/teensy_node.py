@@ -70,7 +70,7 @@ class TeensyNode(Node):
         self.ser.write(b'{b}')
         while not self.ser.inWaiting():
             pass
-        line = self.ser.readline()
+        line = self.ser.readline().decode().strip()
         if line.startswith('{'):
             self.handle_position_update(line)
             line = self.ser.readline()
