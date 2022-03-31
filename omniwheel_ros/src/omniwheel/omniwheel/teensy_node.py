@@ -4,6 +4,7 @@ from rclpy.node import Node
 
 from omniwheel_interfaces.msg import ControllerValue, Pose, MotorState
 from omniwheel_interfaces.srv import EnableMotors, DriveConfig, SetPose
+from sensor_msgs.msgs import BatteryState
 
 from serial import Serial
 
@@ -32,6 +33,7 @@ class TeensyNode(Node):
         self.position_service = self.create_service(SetPose, 'set_position', self.set_position_callback)
         self.odometry = self.create_publisher(Pose, 'omniwheel_pose', 10)
         self.enable_publisher = self.create_publisher(MotorState, 'motor_state', 10)
+        self.battery_publisher = self.create_publisher(BatteryState, 'battery_state', 10)
 
         self.ser = Serial('/dev/ttyACM0', 4000000)
 
@@ -41,21 +43,38 @@ class TeensyNode(Node):
         self.microsteps = self.getTeensyMicrosteps()
         self.position = np.zeros(2)
         self.orientation = 0
-        self.odometry_timer = self.create_timer(0.05, self.timer_callback)
+        self.odometry_timer = self.create_timer(0.05, self.odom_timer_callback)
+        self.battery_timer = self.create_timer(60, self.battery_timer_callback)
 
         self.last_twist_command = time.time()
+        self.battery_state_seq = 0
         
         self.MOTOR_REVS_PER_METER = 47.5
         self.RADIUS = 0.135
 
         self.get_logger().info("Ready...")
 
-    def timer_callback(self):
+    def odom_timer_callback(self):
         message = Pose()
         message.x, message.y, message.rot = float(self.position[0]), float(self.position[1]), float(self.orientation)
         self.odometry.publish(message)
         if time.time() - self.last_twist_command > 0.1 and self.motors_enabled:
             self.soft_stop()
+
+    def battery_timer_callback(self):
+        self.battery_state_seq += 1
+        battery_state = BatteryState()
+        battery_state.voltage = self.get_battery_voltage()
+        battery_state.header.seq = self.battery_state_seq
+        battery_state.header.stamp = self.get_clock().now().to_msg()
+        self.battery_publisher.publish(battery_state)
+
+    def get_battery_voltage(self):
+        self.ser.write(b'{b}')
+        while not self.ser.inWaiting():
+            pass
+        value = float(self.ser.readline())
+        return value
 
     def soft_stop(self):
         commandString = '{I;0.0;0.0;0.0;}'

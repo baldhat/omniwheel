@@ -5,6 +5,7 @@ from rclpy.action import ActionClient
 from omniwheel_interfaces.msg import Pose as PoseMsg, MotorState
 from omniwheel_interfaces.srv import EnableMotors, SetPose
 from omniwheel_interfaces.action import Waypoints
+from sensor_msgs.msg import BatteryState
 
 
 class Robot:
@@ -16,11 +17,13 @@ class Robot:
         self.waypoint_client = ActionClient(node, Waypoints, 'waypoints')
         self.waypoint_goal_handle = None
         node.create_subscription(MotorState, 'motor_state', self.motor_state_callback, 10)
+        node.create_subscription(BatteryState, 'battery_state', self.battery_state_callback, 10)
 
         self.pose = Pose(0, 0, 0)
         self.motors_enabled = False
         self.past_poses = [Pose(0, 0, 0)]
         self.planned_poses: [Pose] = []
+        self.battery_voltage = 0
 
     def set_pose(self, x, y, rot):
         self.pose = Pose(x, y, rot)
@@ -96,6 +99,9 @@ class Robot:
     def motor_state_callback(self, msg):
         self.motors_enabled = msg.enabled
         self.node.get_logger().info('Motors Enabled' if self.motors_enabled else 'Motors Disabled')
+
+    def battery_state_callback(self, msg):
+        self.battery_voltage = msg.voltage
 
     def handle_enable_motors_response(self, future):
         try:

@@ -69,8 +69,11 @@ void runCommand(Command command) {
       break;
     case 'm':
       println(getMicrosteps()); break;
+    case 'b':
+      println(getBatteryLevel()); break;
     case 'I':
       interactiveDriving(); break;
+
   }
 }
 
@@ -80,10 +83,9 @@ void runInteractiveCommand(Command command) {
       updateTargets(command); break;
     case 'E':
       interactiveModeEnabled = false;
-      int voltage = analogRead(VBAT);
-      println("Analog Value: ", voltage);
-      println("Battery Voltage: ",  voltage * 0.0232 + 2.78);
       break;
+    case 'b':
+      println(getBatteryLevel()); break;
   }
 }
 
@@ -257,6 +259,10 @@ void loadDefaultValues() {
   default_accelleration = getAccelleration();
   steps_per_rev_with_micro_stepping = STEPS_PER_REVOLUTION * micro_steps;
   setMicrostepPins(micro_steps);
+}
+
+float getBatteryLevel() {
+  return analogRead(VBAT) * 0.0232 + 2.78; // Grobe lineare Annäherung
 }
 
 void loop() {

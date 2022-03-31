@@ -74,6 +74,13 @@ class Renderer:
         enabledTextRect.x, enabledTextRect.y = (self.WIDTH * 0.85, self.HEIGHT * 0.01)
         self.screen.blit(enabledText, enabledTextRect)
 
+    def draw_battery_state(self, robot):
+        positionText = self.font.render('Battery Voltage: ' + str(round(robot.battery_voltage, 2)),
+                                        True, (0, 255, 255), (100, 100, 100))
+        positionTextRect = positionText.get_rect()
+        positionTextRect.x, positionTextRect.y = (self.WIDTH * 0.81, self.HEIGHT * 0.1)
+        self.screen.blit(positionText, positionTextRect)
+
     def blitRotateCenter(self, image, center, angle):
         rotated_image = pygame.transform.rotate(image, angle * 180 / math.pi)
         new_rect = rotated_image.get_rect(center=image.get_rect(center=center).center)
