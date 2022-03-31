@@ -19,10 +19,11 @@ class PathExecutor(Node):
     def __init__(self):
         super().__init__('path_executor')
         self._action_server = ActionServer(self, Waypoints, 'waypoints',
-                                           self.execute_callback)
+                                           self.execute_callback, cancel_callback=self.cancel_callback)
         self.publisher_ = self.create_publisher(ControllerValue, 'controller_value', 10)
         self.enable_motors_client = self.create_client(EnableMotors, 'enable_motors')
         self.enable_motors_future = None
+        self.pose_subscription = self.create_subscription(Pose, 'omniwheel_pose', self.pose_callback, 10)
 
         self.pose = Pose()
         self.get_logger().info(str(self.pose))
@@ -34,6 +35,9 @@ class PathExecutor(Node):
         self.shouldStop = False
         self.last_tick = time.time_ns()
 
+    def pose_callback(self, msg):
+        self.pose = msg
+
     def execute_callback(self, goal_handle):
         self.get_logger().info("Executing waypoint mission")
         self.shouldStop = False
@@ -42,7 +46,8 @@ class PathExecutor(Node):
 
         for pose in goal_handle.request.poses:
             self.drive_to_pose(pose)
-            self.send_feedback(goal_handle)
+            if not self.shouldStop:
+                self.send_feedback(goal_handle)
 
         self.send_enable_motors(False)
 
@@ -51,6 +56,10 @@ class PathExecutor(Node):
         result = Waypoints.Result()
         result.final_pose = self.pose
         return result
+
+    def cancel_callback(self, _):
+        self.shouldStop = True
+        return 2
 
     def send_feedback(self, goal_handle):
         feedback_msg = Waypoints.Feedback()
@@ -67,7 +76,7 @@ class PathExecutor(Node):
         while not self.poseReached(pose) and not self.shouldStop:
             direction, velocity, rotation = self.calculateControllerValue(pose)
             self.sendControllerValue(direction, velocity, rotation)
-            time.sleep(0.05)
+            self.executor.spin_once(timeout_sec=0.05)
 
     def poseReached(self, pose):
         return self.distanceTo(pose) <= self.MAX_POS_ERROR and abs(self.getRotDistance(pose)) <= self.MAX_ROT_ERROR
@@ -106,32 +115,18 @@ class PathExecutor(Node):
         self.publisher_.publish(msg)
 
 
-class PathExecutorPoseSubscriber(Node):
-
-    def __init__(self, path_executor):
-        super().__init__('path_executor_pose_subscriber')
-        self.pose_subscription = self.create_subscription(Pose, 'omniwheel_pose', self.pose_callback, 10)
-        self.path_executor = path_executor
-
-    def pose_callback(self, msg):
-        self.path_executor.pose = msg
-
-
 def main(args=None):
     rclpy.init(args=args)
 
+    executor = MultiThreadedExecutor(num_threads=2)
     path_executor = PathExecutor()
-    executor_pose_subscriber = PathExecutorPoseSubscriber(path_executor)
-
-    executor = MultiThreadedExecutor(num_threads=4)
     executor.add_node(path_executor)
-    executor.add_node(executor_pose_subscriber)
+
     try:
         executor.spin()
     finally:
         executor.shutdown()
         path_executor.destroy_node()
-        executor_pose_subscriber.destroy_node()
 
 
 if __name__ == '__main__':
