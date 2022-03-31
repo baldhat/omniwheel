@@ -47,7 +47,6 @@ class TeensyNode(Node):
         self.battery_timer = self.create_timer(60, self.battery_timer_callback)
 
         self.last_twist_command = time.time()
-        self.battery_state_seq = 0
         
         self.MOTOR_REVS_PER_METER = 47.5
         self.RADIUS = 0.135
@@ -62,10 +61,8 @@ class TeensyNode(Node):
             self.soft_stop()
 
     def battery_timer_callback(self):
-        self.battery_state_seq += 1
         battery_state = BatteryState()
         battery_state.voltage = self.get_battery_voltage()
-        battery_state.header.seq = self.battery_state_seq
         battery_state.header.stamp = self.get_clock().now().to_msg()
         self.battery_publisher.publish(battery_state)
 

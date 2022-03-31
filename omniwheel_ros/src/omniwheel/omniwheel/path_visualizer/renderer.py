@@ -78,7 +78,7 @@ class Renderer:
 
     def draw_battery_state(self, robot):
         positionText = self.font.render('Battery Voltage: ' + str(round(robot.battery_voltage, 2)),
-                                        True, (0, 255, 255), (100, 100, 100))
+                                        True, (255, 255, 255), (100, 100, 100))
         positionTextRect = positionText.get_rect()
         positionTextRect.x, positionTextRect.y = (self.WIDTH * 0.81, self.HEIGHT * 0.1)
         self.screen.blit(positionText, positionTextRect)
