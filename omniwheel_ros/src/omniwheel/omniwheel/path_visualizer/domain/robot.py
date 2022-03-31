@@ -39,7 +39,8 @@ class Robot:
         enable_motors_future.add_done_callback(self.handle_enable_motors_response)
 
     def resetPosition(self):
-        self.cancel_waypoint_mission()
+        # self.cancel_waypoint_mission()
+        self.pose = Pose(0, 0, 0)
         request = SetPose.Request()
         request.pose.x, request.pose.y, request.pose.rot = 0.0, 0.0, 0.0
         set_position_future = self.position_client.call_async(request)

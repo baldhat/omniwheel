@@ -70,13 +70,17 @@ class TeensyNode(Node):
         self.ser.write(b'{b}')
         while not self.ser.inWaiting():
             pass
-        value = float(self.ser.readline())
+        line = self.ser.readline()
+        if line.startswith('{'):
+            self.handle_position_update(line)
+            line = self.ser.readline()
+        value = float(line)
         return value
 
     def soft_stop(self):
         commandString = '{I;0.0;0.0;0.0;}'
         self.ser.write(commandString.encode())
-        self.get_logger().info("Soft Stopped")
+        self.get_logger().debug("Soft Stopped")
         
     def enable_motors_callback(self, request, response):
         if request.enable:
@@ -167,11 +171,14 @@ class TeensyNode(Node):
         while self.ser.inWaiting():
             line = self.ser.readline().decode().strip()
             if line.startswith("{"):
-                line = line[1:len(line) - 1]
-                steps = line.split(";")
-                self.updatePosition(steps)
+                self.handle_position_update(line)
             else:
                 self.get_logger().info(line)
+
+    def handle_position_update(self, line):
+        line = line[1:len(line) - 1]
+        steps = line.split(";")
+        self.updatePosition(steps)
 
     def updatePosition(self, steps):
         steps = [steps[0], steps[1], steps[2]]
