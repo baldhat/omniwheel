@@ -36,17 +36,23 @@ class PSController(Node):
 
         self.get_logger().info("Ready...")
 
-    def run(self):     
-        for event in pygame.event.get():
-            if event.type == pygame.JOYAXISMOTION:
-                self.handleJoysticks(event)
-            elif event.type == pygame.JOYBUTTONDOWN:
-                self.handleButtons(event)
-                    
-    def handleJoysticks(self, event):
+    def run(self):
         x = self.last_x
         y = self.last_y
         rot = self.last_rot
+        for event in pygame.event.get():
+            if event.type == pygame.JOYAXISMOTION:
+                self.handle_joysticks(event, x, y, rot)
+            elif event.type == pygame.JOYBUTTONDOWN:
+                self.handle_buttons(event)
+        if self.should_update_controller_value(rot, x, y):
+            self.update()
+
+    def should_update_controller_value(self, rot, x, y):
+        return self.has_value_changed(rot, x, y) or (
+                    time.time() - self.last_update > 0.05 and (x != 0 or y != 0 or rot != 0))
+
+    def handle_joysticks(self, event, x, y, rot):
         if event.axis == 0:  # left joystick left right
             self.last_x = event.value if abs(event.value) > 0.1 else 0
         if event.axis == 1:  # left joystick up and down
@@ -55,17 +61,15 @@ class PSController(Node):
             self.last_rot = - event.value if abs(event.value) > 0.1 else 0
         if event.axis == 4:  # right joystick up down
             pass
-        if self.hasValueChanged(rot, x, y) or (time.time() - self.last_update > 0.05 and (x != 0 or y != 0 or rot != 0)):
-            self.update()
 
-    def hasValueChanged(self, rot, x, y):
+    def has_value_changed(self, rot, x, y):
         return self.last_x != x or self.last_y != y or self.last_rot != rot
 
-    def handleButtons(self, event):
+    def handle_buttons(self, event):
         if event.button == 0:
-            self.enableMotors()
+            self.enable_motors()
         elif event.button == 3:
-            self.disableMotors()
+            self.disable_motors()
         else:
             self.get_logger().info(event.button)
 
@@ -83,10 +87,10 @@ class PSController(Node):
             self.get_logger().debug('"%f %f %f"' % (msg.direction, msg.velocity, msg.rotation))
             self.last_update = time.time()
         
-    def enableMotors(self):
+    def enable_motors(self):
         self.send_enable_motors(True)
 
-    def disableMotors(self):
+    def disable_motors(self):
         self.send_enable_motors(False)
         
     def send_enable_motors(self, value):
