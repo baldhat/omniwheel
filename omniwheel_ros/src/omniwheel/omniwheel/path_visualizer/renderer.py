@@ -7,6 +7,7 @@ import math
 
 from omniwheel.path_visualizer.domain.pose import Pose
 
+
 class Renderer:
 
     def __init__(self):

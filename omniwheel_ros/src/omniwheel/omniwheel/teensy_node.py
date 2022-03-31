@@ -4,7 +4,7 @@ from rclpy.node import Node
 
 from omniwheel_interfaces.msg import ControllerValue, Pose, MotorState
 from omniwheel_interfaces.srv import EnableMotors, DriveConfig, SetPose
-from sensor_msgs.msgs import BatteryState
+from sensor_msgs.msg import BatteryState
 
 from serial import Serial
 
