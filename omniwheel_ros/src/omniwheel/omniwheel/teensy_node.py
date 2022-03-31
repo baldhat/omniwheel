@@ -15,14 +15,6 @@ class TeensyNode(Node):
     """
     This class represents the interface between the ROS graph and the Teensy driving the stepper motors, which is
      connected via a serial connection.
-
-    ROS subscriber:
-        - /controller_value
-    ROS publisher:
-        - /omniwheel_pose
-    ROS service servers:
-        - /enable_motors
-        - /drive_config
     """
     
     def __init__(self):
@@ -38,7 +30,7 @@ class TeensyNode(Node):
         self.ser = Serial('/dev/ttyACM0', 4000000)
 
         self.motors_enabled = False
-        self.velocity = self.getTeensyVelocity()
+        self.velocity = self.get_teensy_velocity()
         self.acceleration = self.getTeensyAcceleration()
         self.microsteps = self.getTeensyMicrosteps()
         self.position = np.zeros(2)
@@ -85,21 +77,21 @@ class TeensyNode(Node):
     def enable_motors_callback(self, request, response):
         if request.enable:
             self.ser.write(b'{I}')
-            response.enabled = True
-            self.motors_enabled = True
         else:
             self.ser.write(b'{E}')
-            self.motors_enabled = False
-            response.enabled = False
 
+        self.motors_enabled = request.enable
+        response.enabled = self.motors_enabled
+        self.publish_motor_state(response)
+
+        self.get_logger().info('Motors Enabled' if response.enabled else 'Motors Disabled')
+        return response
+
+    def publish_motor_state(self, response):
         message = MotorState()
         message.enabled = response.enabled
         self.enable_publisher.publish(message)
-        
-        self.get_logger().info('Motors Enabled' if response.enabled else 'Motors Disabled')
 
-        return response
-        
     def drive_config_callback(self, request, response):
         if request.acceleration <= 0:
             response.acceleration = self.acceleration
@@ -144,7 +136,7 @@ class TeensyNode(Node):
         response.pose.x, response.pose.y, response.pose.rot = request.pose.x, request.pose.y, request.pose.rot
         return response
         
-    def getTeensyVelocity(self):
+    def get_teensy_velocity(self):
         self.ser.write(b'{s}')
         while not self.ser.inWaiting():
             pass
@@ -152,7 +144,7 @@ class TeensyNode(Node):
             value = float(self.ser.readline())
         except:
             self.ser.write(b'{E}')
-            value = self.getTeensyVelocity()
+            value = self.get_teensy_velocity()
         return value
         
     def getTeensyAcceleration(self):

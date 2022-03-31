@@ -42,7 +42,7 @@ class PSController(Node):
         rot = self.last_rot
         for event in pygame.event.get():
             if event.type == pygame.JOYAXISMOTION:
-                self.handle_joysticks(event, x, y, rot)
+                self.handle_joysticks(event)
             elif event.type == pygame.JOYBUTTONDOWN:
                 self.handle_buttons(event)
         if self.should_update_controller_value(rot, x, y):
@@ -52,14 +52,14 @@ class PSController(Node):
         return self.has_value_changed(rot, x, y) or (
                     time.time() - self.last_update > 0.05 and (x != 0 or y != 0 or rot != 0))
 
-    def handle_joysticks(self, event, x, y, rot):
-        if event.axis == 0:  # left joystick left right
+    def handle_joysticks(self, event):
+        if event.axis == 0:  # left joystick horizontal
             self.last_x = event.value if abs(event.value) > 0.1 else 0
-        if event.axis == 1:  # left joystick up and down
+        if event.axis == 1:  # left joystick vertical
             self.last_y = - event.value if abs(event.value) > 0.1 else 0
-        if event.axis == 3:  # right joystick left right
+        if event.axis == 3:  # right joystick horizontal
             self.last_rot = - event.value if abs(event.value) > 0.1 else 0
-        if event.axis == 4:  # right joystick up down
+        if event.axis == 4:  # right joystick vertical
             pass
 
     def has_value_changed(self, rot, x, y):
@@ -79,14 +79,18 @@ class PSController(Node):
         new_direction = new_direction - math.pi / 2  # the robot has 0 degrees at the front
 
         if self.motors_enabled:
-            msg = ControllerValue()
-            msg.direction = float(new_direction)
-            msg.velocity = float(velocity)
-            msg.rotation = float(rotation)
-            self.publisher_.publish(msg)
+            msg = self.publish_pose(new_direction, rotation, velocity)
             self.get_logger().debug('"%f %f %f"' % (msg.direction, msg.velocity, msg.rotation))
             self.last_update = time.time()
-        
+
+    def publish_pose(self, new_direction, rotation, velocity):
+        msg = ControllerValue()
+        msg.direction = float(new_direction)
+        msg.velocity = float(velocity)
+        msg.rotation = float(rotation)
+        self.publisher_.publish(msg)
+        return msg
+
     def enable_motors(self):
         self.send_enable_motors(True)
 

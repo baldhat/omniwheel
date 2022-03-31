@@ -38,8 +38,7 @@ class Robot:
         enable_motors_future = self.enable_motors_client.call_async(request)
         enable_motors_future.add_done_callback(self.handle_enable_motors_response)
 
-    def resetPosition(self):
-        self.cancel_waypoint_mission()
+    def reset_position(self):
         self.pose = Pose(0, 0, 0)
         request = SetPose.Request()
         request.pose.x, request.pose.y, request.pose.rot = 0.0, 0.0, 0.0
@@ -110,8 +109,6 @@ class Robot:
             self.motors_enabled = response.enabled
         except Exception as e:
             self.node.get_logger().info('Enable Motors Service call failed %r' % (e,))
-        else:
-            self.node.get_logger().info('Motors Enabled' if response.enabled else 'Motors Disabled')
 
     def handle_set_position_response(self, future):
         try:

@@ -37,6 +37,10 @@ class Renderer:
         self.render_stats(robot)
         pygame.display.flip()
 
+    def reset(self):
+        self.MAP_SCALE = 100
+        self.display_offset = np.array([self.WIDTH / 2.2, self.HEIGHT / 2])
+
     def draw_path(self, past_poses: [Pose]):
         past_poses[0] = Pose(0, 0, 0)
         for i, value in enumerate(past_poses):
