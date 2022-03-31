@@ -2,12 +2,12 @@
 #include "Arduino.h"
 #include "parser.h"
 
-#define NUM_VALID_COMMANDS 8
+#define NUM_VALID_COMMANDS 9
 
 char serialString[50];
 int nextWritePosition = 0;
 boolean isNewFullCommand = false;
-char validCommands[NUM_VALID_COMMANDS + 1] = "AaSsMmIE";
+char validCommands[NUM_VALID_COMMANDS + 1] = "AaSsMmIEb";
 
 boolean receiveSerialData() {
   while (Serial.available() > 0) {

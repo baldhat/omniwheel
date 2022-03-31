@@ -57,6 +57,7 @@ class Renderer:
     def render_stats(self, robot):
         self.drawMotorState(robot)
         self.drawPosition(robot)
+        self.draw_battery_state(robot)
 
     def drawPosition(self, robot):
         positionText = self.font.render('Position: ' + str(round(robot.pose.x, 2)) + "x  "
