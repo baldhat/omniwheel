@@ -8,7 +8,7 @@ from glob import glob
 import rclpy
 from rclpy.node import Node
 
-from omniwheel_interfaces.msg import ControllerValue
+from omniwheel_interfaces.msg import ControllerValue, MotorState
 from omniwheel_interfaces.srv import EnableMotors
 
 from omniwheel.helper.helper import to_polar
@@ -22,6 +22,7 @@ class PSController(Node):
         self.enable_motors_client = self.create_client(EnableMotors, 'enable_motors')
         self.motors_enabled = False
         self.conroller_value_timer = self.create_timer(0.05, self.update_controller_values)
+        self.create_subscription(MotorState, 'motor_state', self.motor_state_callback, 10)
         self.last_sent_zeros = False
 
         connected = False
@@ -116,6 +117,10 @@ class PSController(Node):
 
     def disable_motors(self):
         self.send_enable_motors(False)
+
+    def motor_state_callback(self, msg):
+        self.motors_enabled = msg.enabled
+        self.color(0, 255, 0) if self.motors_enabled else self.color(255, 0, 0)
         
     def send_enable_motors(self, value):
         request = EnableMotors.Request()

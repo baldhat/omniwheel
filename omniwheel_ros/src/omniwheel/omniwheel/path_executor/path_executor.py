@@ -60,7 +60,8 @@ class PathExecutor(Node):
         while not self.poseReached(pose) and not self.shouldStop:
             direction, velocity, rotation = self.calculate_controller_value(pose)
             self.sendControllerValue(direction, velocity, rotation)
-            self.executor.spin_once(timeout_sec=0.05)
+            self.executor.spin_once(timeout_sec=0.0)
+            time.sleep(0.05)
 
     def poseReached(self, pose):
         return self.distance_to(pose) <= self.MAX_POS_ERROR and abs(self.rot_distance_to(pose)) <= self.MAX_ROT_ERROR
