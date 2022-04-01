@@ -15,16 +15,31 @@ from omniwheel.helper.helper import to_polar
 
 
 class PSController(Node):
+    """ Publishes the command read from a PS4 Controller to the controller_value topic.
 
+        Publishers:
+            - controller_value
+        Subscribers:
+            - motor_state
+        Service clients:
+            - enable_motors
+    """
     def __init__(self):
         super().__init__('controller_publisher')
         self.publisher_ = self.create_publisher(ControllerValue, 'controller_value', 10)
         self.enable_motors_client = self.create_client(EnableMotors, 'enable_motors')
-        self.motors_enabled = False
         self.conroller_value_timer = self.create_timer(0.05, self.update_controller_values)
         self.create_subscription(MotorState, 'motor_state', self.motor_state_callback, 10)
+
+        # Flag showing if the motors of the robot are currently enabled. This value is set whenever a motor_state
+        # message is received.
+        self.motors_enabled = False
+
+        # Flag showing if the most recently sent message to the controller_value topic consisted of all zeros.
+        # This is used to determine whether another such message should be sent.
         self.last_sent_zeros = False
 
+        # Wait for the PS4 Controller to be connected
         connected = False
         while not connected:
             try:
@@ -34,8 +49,10 @@ class PSController(Node):
             except:
                 time.sleep(1)
 
-        self.REL = 127
+        # The zero point of the controller joystick values
+        self.JOYSTICK_ZERO_POINT = 127
 
+        # The last read values of the controller joysticks
         self.controller_x = 0
         self.controller_y = 0
         self.controller_rotation = 0
@@ -70,7 +87,7 @@ class PSController(Node):
             Sets the values of the three monitored axes.
             Smaller values around the zero-point are considered noise.
         """
-        value = (event.value - self.REL) / self.REL
+        value = (event.value - self.JOYSTICK_ZERO_POINT) / self.JOYSTICK_ZERO_POINT
         if abs(value) < 0.08:
             value = 0.0
         if event.code == 0:  # left stick horizontal
