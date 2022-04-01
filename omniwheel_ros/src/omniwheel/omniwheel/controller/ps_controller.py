@@ -1,6 +1,4 @@
-import os
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
-import pygame
+from evdev import InputDevice, categorize, ecodes, KeyEvent
 
 import math
 import time
@@ -21,12 +19,10 @@ class PSController(Node):
         self.publisher_ = self.create_publisher(ControllerValue, 'controller_value', 10)
         self.enable_motors_client = self.create_client(EnableMotors, 'enable_motors')
         self.motors_enabled = False
-        
-        pygame.init()
-        pygame.display.init()
-        pygame.joystick.init()
-        self.controller = pygame.joystick.Joystick(0)
-        self.controller.init()
+        self.conroller_value_timer = self.create_timer(0.05, self.update_controller_values)
+
+        self.gamepad = InputDevice('/dev/input/event2')
+        self.REL = 127
         
         self.last_x = 0
         self.last_y = 0
@@ -37,48 +33,41 @@ class PSController(Node):
         self.get_logger().info("Ready...")
 
     def run(self):
-        x = self.last_x
-        y = self.last_y
-        rot = self.last_rot
-        for event in pygame.event.get():
-            if event.type == pygame.JOYAXISMOTION:
+        for event in self.gamepad.read_loop():
+            if event.type == ecodes.EV_ABS:
                 self.handle_joysticks(event)
-            elif event.type == pygame.JOYBUTTONDOWN:
+            elif event.type == ecodes.EV_KEY:
                 self.handle_buttons(event)
-        if self.should_update_controller_value(rot, x, y):
-            self.update()
-
-    def should_update_controller_value(self, rot, x, y):
-        return self.has_value_changed(rot, x, y) or (
-                    time.time() - self.last_update > 0.05 and (x != 0 or y != 0 or rot != 0))
+            rclpy.spin_once(self, timeout_sec=0.04)
 
     def handle_joysticks(self, event):
-        if event.axis == 0:  # left joystick horizontal
-            self.last_x = event.value if abs(event.value) > 0.1 else 0
-        if event.axis == 1:  # left joystick vertical
-            self.last_y = - event.value if abs(event.value) > 0.1 else 0
-        if event.axis == 3:  # right joystick horizontal
-            self.last_rot = - event.value if abs(event.value) > 0.1 else 0
-        if event.axis == 4:  # right joystick vertical
-            pass
+        value = (event.value - self.REL) / self.REL
+        if abs(value) > 0.08:
+            if event.code == 0:
+                self.last_x = value
+            if event.code == 1:
+                self.last_y = value
+            if event.code == 3:
+                self.last_rot = value
+            if event.code == 4:
+                pass
 
     def has_value_changed(self, rot, x, y):
         return self.last_x != x or self.last_y != y or self.last_rot != rot
 
     def handle_buttons(self, event):
-        if event.button == 0:
-            self.enable_motors()
-        elif event.button == 3:
-            self.disable_motors()
-        else:
-            self.get_logger().info(event.button)
+        keyevent = categorize(event)
+        if keyevent.keystate == KeyEvent.key_down:
+            if keyevent.keycode[0] == 'BTN_A':
+                self.enable_motors()
+            if keyevent.keycode[0] == 'BTN_WEST':
+                self.disable_motors()
 
-    def update(self):
-        new_direction, velocity = to_polar(self.last_x, self.last_y)
-        rotation = self.last_rot
-        new_direction = new_direction - math.pi / 2  # the robot has 0 degrees at the front
-
+    def update_controller_values(self):
         if self.motors_enabled:
+            new_direction, velocity = to_polar(self.last_x, self.last_y)
+            rotation = self.last_rot
+            new_direction = new_direction - math.pi / 2  # the robot has 0 degrees at the front
             msg = self.publish_pose(new_direction, rotation, velocity)
             self.get_logger().debug('"%f %f %f"' % (msg.direction, msg.velocity, msg.rotation))
             self.last_update = time.time()
@@ -122,7 +111,6 @@ def main(args=None):
     try:
         while rclpy.ok():
             controller_publisher.run()
-            rclpy.spin_once(controller_publisher, timeout_sec=0.04)
     except KeyboardInterrupt:
         print('Bye')
 
