@@ -22,6 +22,7 @@ class PSController(Node):
         self.enable_motors_client = self.create_client(EnableMotors, 'enable_motors')
         self.motors_enabled = False
         self.conroller_value_timer = self.create_timer(0.05, self.update_controller_values)
+        self.last_sent_zeros = False
 
         connected = False
         while not connected:
@@ -86,13 +87,21 @@ class PSController(Node):
                 self.disable_motors()
 
     def update_controller_values(self):
-        if self.motors_enabled:
+        if self.motors_enabled and \
+                not(self.last_sent_zeros and self.last_x <= 0.1 and self.last_y <= 0.1 and self.last_y <= 0.1):
+            self.check_sending_zeros()
             new_direction, velocity = to_polar(self.last_x, self.last_y)
             rotation = self.last_rot
             new_direction = new_direction - math.pi / 2  # the robot has 0 degrees at the front
             msg = self.publish_pose(new_direction, rotation, velocity)
             self.get_logger().debug('"%f %f %f"' % (msg.direction, msg.velocity, msg.rotation))
             self.last_update = time.time()
+
+    def check_sending_zeros(self):
+        if self.last_x <= 0.1 and self.last_y <= 0.1 and self.last_y <= 0.1:
+            self.last_sent_zeros = True
+        else:
+            self.last_sent_zeros = False
 
     def publish_pose(self, new_direction, rotation, velocity):
         msg = ControllerValue()
