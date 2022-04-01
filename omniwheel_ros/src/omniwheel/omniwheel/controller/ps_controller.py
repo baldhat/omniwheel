@@ -2,6 +2,7 @@ from evdev import InputDevice, categorize, ecodes, KeyEvent
 
 import math
 import time
+from select import select
 
 import rclpy
 from rclpy.node import Node
@@ -36,6 +37,7 @@ class PSController(Node):
 
     def run(self):
         while True:
+            r, w, x = select("/dev/input/event2", [], [], timeout=0.01)
             for event in self.gamepad.read():
                 if event.type == ecodes.EV_ABS:
                     self.handle_joysticks(event)
