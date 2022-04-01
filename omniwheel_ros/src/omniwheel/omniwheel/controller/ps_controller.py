@@ -37,25 +37,27 @@ class PSController(Node):
 
     def run(self):
         while True:
-            r, w, x = select("/dev/input/event2", [], [], timeout=0.01)
-            for event in self.gamepad.read():
-                if event.type == ecodes.EV_ABS:
-                    self.handle_joysticks(event)
-                elif event.type == ecodes.EV_KEY:
-                    self.handle_buttons(event)
+            r, w, x = select("/dev/input/event2", [], [], 0.01)
+            if len(r) > 0:
+                for event in self.gamepad.read():
+                    if event.type == ecodes.EV_ABS:
+                        self.handle_joysticks(event)
+                    elif event.type == ecodes.EV_KEY:
+                        self.handle_buttons(event)
             rclpy.spin_once(self, timeout_sec=0.01)
 
     def handle_joysticks(self, event):
         value = (event.value - self.REL) / self.REL
-        if abs(value) > 0.08:
-            if event.code == 0:
-                self.last_x = value
-            if event.code == 1:
-                self.last_y = value
-            if event.code == 3:
-                self.last_rot = value
-            if event.code == 4:
-                pass
+        if value < 0.08:
+            value = 0.0
+        if event.code == 0:
+            self.last_x = value
+        if event.code == 1:
+            self.last_y = value
+        if event.code == 3:
+            self.last_rot = value
+        if event.code == 4:
+            pass
 
     def has_value_changed(self, rot, x, y):
         return self.last_x != x or self.last_y != y or self.last_rot != rot
