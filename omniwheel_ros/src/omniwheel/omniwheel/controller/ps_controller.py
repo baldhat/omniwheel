@@ -23,6 +23,8 @@ class PSController(Node):
 
         self.gamepad = InputDevice('/dev/input/event2')
         self.REL = 127
+
+        self.get_logger().info(str(self.gamepad.leds(verbose=True)))
         
         self.last_x = 0
         self.last_y = 0
@@ -33,12 +35,13 @@ class PSController(Node):
         self.get_logger().info("Ready...")
 
     def run(self):
-        for event in self.gamepad.read_loop():
-            if event.type == ecodes.EV_ABS:
-                self.handle_joysticks(event)
-            elif event.type == ecodes.EV_KEY:
-                self.handle_buttons(event)
-            rclpy.spin_once(self, timeout_sec=0.04)
+        while True:
+            for event in self.gamepad.read():
+                if event.type == ecodes.EV_ABS:
+                    self.handle_joysticks(event)
+                elif event.type == ecodes.EV_KEY:
+                    self.handle_buttons(event)
+            rclpy.spin_once(self, timeout_sec=0.01)
 
     def handle_joysticks(self, event):
         value = (event.value - self.REL) / self.REL
@@ -109,8 +112,7 @@ def main(args=None):
     controller_publisher = PSController()
     
     try:
-        while rclpy.ok():
-            controller_publisher.run()
+        controller_publisher.run()
     except KeyboardInterrupt:
         print('Bye')
 
