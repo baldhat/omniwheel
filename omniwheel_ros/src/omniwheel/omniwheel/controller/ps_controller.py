@@ -118,7 +118,7 @@ class PSController(Node):
         try:
             response = future.result()
             self.motors_enabled = response.enabled
-            self.color(0, 255, 0) if self.motors_enabled else self.color(0, 0, 255)
+            self.color(0, 255, 0) if self.motors_enabled else self.color(255, 0, 0)
         except Exception as e:
             self.get_logger().info(
                 'Service call failed %r' % (e,))
