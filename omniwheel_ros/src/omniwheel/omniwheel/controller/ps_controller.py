@@ -92,10 +92,8 @@ class PSController(Node):
                 not(self.last_sent_zeros and self.last_x <= 0.1 and self.last_y <= 0.1 and self.last_y <= 0.1):
             self.check_sending_zeros()
             new_direction, velocity = to_polar(self.last_x, self.last_y)
-            rotation = self.last_rot
             new_direction = new_direction - math.pi / 2  # the robot has 0 degrees at the front
-            msg = self.publish_pose(new_direction, rotation, velocity)
-            self.get_logger().debug('"%f %f %f"' % (msg.direction, msg.velocity, msg.rotation))
+            self.publish_pose(new_direction, self.last_rot, velocity)
             self.last_update = time.time()
 
     def check_sending_zeros(self):
