@@ -1,0 +1,3 @@
+# udev rules for pypad2
+# allow to write to led's
+KERNEL=="0005:054C:*", SUBSYSTEM=="leds", ACTION=="add", RUN+="/bin/chmod a+w /sys/class/leds/%k/brightness"
