@@ -3,6 +3,7 @@ from evdev import InputDevice, categorize, ecodes, KeyEvent
 import math
 import time
 from select import select
+from glob import glob
 
 import rclpy
 from rclpy.node import Node
@@ -22,10 +23,17 @@ class PSController(Node):
         self.motors_enabled = False
         self.conroller_value_timer = self.create_timer(0.05, self.update_controller_values)
 
-        self.gamepad = InputDevice('/dev/input/event2')
-        self.REL = 127
+        connected = False
+        while not connected:
+            try:
+                self.gamepad = InputDevice('/dev/input/event2')
+                connected = True
+                self.color(0, 255, 0)
+            except:
+                self.color(255, 0, 0)
+                time.sleep(1)
 
-        self.get_logger().info(str(self.gamepad.leds(verbose=True)))
+        self.REL = 127
         
         self.last_x = 0
         self.last_y = 0
@@ -45,6 +53,14 @@ class PSController(Node):
                     elif event.type == ecodes.EV_KEY:
                         self.handle_buttons(event)
             rclpy.spin_once(self, timeout_sec=0.01)
+
+    def color(self, red, green, blue):
+        colors = ['red', 'green', 'blue']
+        for color in colors:
+            for path in glob(f'/sys/class/leds/0005:054C:*:{color}'):
+                if color == 'red': f = open(path + '/brightness', 'a'); f.write(str(red)); f.close()
+                if color == 'green': f = open(path + '/brightness', 'a'); f.write(str(green)); f.close()
+                if color == 'blue': f = open(path + '/brightness', 'a'); f.write(str(blue)); f.close()
 
     def handle_joysticks(self, event):
         value = (event.value - self.REL) / self.REL
@@ -103,6 +119,7 @@ class PSController(Node):
         try:
             response = future.result()
             self.motors_enabled = response.enabled
+            self.color(0, 0, 255) if self.motors_enabled else self.color(0, 255, 0)
         except Exception as e:
             self.get_logger().info(
                 'Service call failed %r' % (e,))
