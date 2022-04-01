@@ -28,9 +28,8 @@ class PSController(Node):
             try:
                 self.gamepad = InputDevice('/dev/input/event2')
                 connected = True
-                self.color(0, 255, 0)
-            except:
                 self.color(255, 0, 0)
+            except:
                 time.sleep(1)
 
         self.REL = 127
@@ -119,7 +118,7 @@ class PSController(Node):
         try:
             response = future.result()
             self.motors_enabled = response.enabled
-            self.color(0, 0, 255) if self.motors_enabled else self.color(0, 255, 0)
+            self.color(0, 255, 0) if self.motors_enabled else self.color(0, 0, 255)
         except Exception as e:
             self.get_logger().info(
                 'Service call failed %r' % (e,))
