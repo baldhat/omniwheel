@@ -37,7 +37,7 @@ class PSController(Node):
 
     def run(self):
         while True:
-            r, w, x = select("/dev/input/event2", [], [], 0.01)
+            r, w, x = select([self.gamepad.fd], [], [], 0.01)
             if len(r) > 0:
                 for event in self.gamepad.read():
                     if event.type == ecodes.EV_ABS:
@@ -48,14 +48,14 @@ class PSController(Node):
 
     def handle_joysticks(self, event):
         value = (event.value - self.REL) / self.REL
-        if value < 0.08:
+        if abs(value) < 0.08:
             value = 0.0
         if event.code == 0:
             self.last_x = value
         if event.code == 1:
-            self.last_y = value
+            self.last_y = -value  # reversed
         if event.code == 3:
-            self.last_rot = value
+            self.last_rot = -value  # reversed
         if event.code == 4:
             pass
 
