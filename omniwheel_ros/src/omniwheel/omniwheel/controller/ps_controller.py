@@ -29,6 +29,13 @@ def color(red, green, blue):
             if color == 'blue': f = open(path + '/brightness', 'a'); f.write(str(blue)); f.close()
 
 
+def show_connected():
+    """ Show that the controller was connected by flashing turquoise for one second """
+    color(0, 255, 255)
+    time.sleep(1)
+    color(255, 0, 0)
+
+
 class PSController(Node):
     """ Publishes the command read from a PS4 Controller to the controller_value topic.
 
@@ -60,7 +67,7 @@ class PSController(Node):
             try:
                 self.gamepad = InputDevice('/dev/input/event2')
                 connected = True
-                color(255, 0, 0)
+                show_connected()
             except:
                 time.sleep(1)
 
