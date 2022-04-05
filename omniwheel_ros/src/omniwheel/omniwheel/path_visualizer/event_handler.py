@@ -70,7 +70,7 @@ class EventHandler:
         self.key_event_handlers.append((pygame.KEYDOWN, pygame.K_d, lambda: self.set_x(1)))
         self.key_event_handlers.append((pygame.KEYDOWN, pygame.K_SPACE, self.robot.switch_motor_enabled))
         self.key_event_handlers.append((pygame.KEYDOWN, pygame.K_c, self.robot.reset_position))
-        self.key_event_handlers.append((pygame.KEYDOWN, pygame.K_0, self.renderer.reset))
+        self.key_event_handlers.append((pygame.KEYDOWN, pygame.K_0, self.renderer.reset_camera))
         self.key_event_handlers.append((pygame.KEYDOWN, pygame.K_ESCAPE, self.robot.cancel_waypoint_mission))
 
         self.key_event_handlers.append((pygame.KEYUP, pygame.K_q, lambda: self.set_rot(0)))
@@ -98,7 +98,7 @@ class EventHandler:
             pygame.MOUSEBUTTONDOWN, 2, lambda event: self.set_middle_mouse_down(True)))
         self.mouse_button_event_handlers.append((
             pygame.MOUSEBUTTONDOWN, 1,
-             lambda event: self.robot.add_waypoint(self.renderer.to_real_pos(event.pos),
+             lambda event: self.robot.add_waypoint(self.renderer.pixel_to_pose(event.pos),
                                                    not pygame.key.get_pressed()[pygame.K_LSHIFT])
         ))
 
