@@ -10,7 +10,7 @@ from sensor_msgs.msg import BatteryState
 
 class Robot:
     """
-    This class represents the omniwheel robot towards the path_visualizer.
+    This class represents the omniwheel robot to the path_visualizer.
 
     Subscribers:
         - omniwheel_pose
