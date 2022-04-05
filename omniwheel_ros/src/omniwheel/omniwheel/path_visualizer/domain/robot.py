@@ -3,7 +3,7 @@ from omniwheel.path_visualizer.domain.pose import Pose
 from rclpy.action import ActionClient
 
 from omniwheel_interfaces.msg import Pose as PoseMsg, MotorState
-from omniwheel_interfaces.srv import EnableMotors, SetPose
+from omniwheel_interfaces.srv import EnableMotors, SetPose, DriveConfig
 from omniwheel_interfaces.action import Waypoints
 from sensor_msgs.msg import BatteryState
 
@@ -19,6 +19,7 @@ class Robot:
     Service clients:
         - enable_motors
         - set_pose
+        - drive_config
     Action servers:
         - waypoints
     """
@@ -32,6 +33,7 @@ class Robot:
         # Service clients
         self.enable_motors_client = node.create_client(EnableMotors, 'enable_motors')
         self.position_client = node.create_client(SetPose, 'set_pose')
+        self.config_client = node.create_client(DriveConfig, 'drive_config')
         # Action client
         self.waypoint_client = ActionClient(node, Waypoints, 'waypoints')
         self.waypoint_goal_handle = None  # Used for action cancellation
@@ -41,6 +43,12 @@ class Robot:
         self.past_poses = [Pose(0, 0, 0)]  # List of previous poses of the robot, in order
         self.planned_poses: [Pose] = []  # List of planned poses/waypoints, gets send to the Waypoints-Action-Server
         self.battery_voltage = 0  # Current voltage of the robots batteries, updated by battery_state
+
+        self.max_wheel_velocity = 0
+        self.max_wheel_acceleration = 0
+        self.micro_steps = 0
+
+        self.get_drive_config_values()
 
     def set_pose(self, x, y, rot):
         """
@@ -63,6 +71,11 @@ class Robot:
         request.enable = not self.motors_enabled
         enable_motors_future = self.enable_motors_client.call_async(request)
         enable_motors_future.add_done_callback(self.handle_enable_motors_response)
+
+    def get_drive_config_values(self):
+        request = DriveConfig.Request()
+        drive_config_future = self.config_client.call_async(request)
+        drive_config_future.add_done_callback(self.handle_drive_config_response)
 
     def reset_position(self):
         """
@@ -158,6 +171,12 @@ class Robot:
         """
         self.motors_enabled = msg.enabled
         self.node.get_logger().info('Motors Enabled' if self.motors_enabled else 'Motors Disabled')
+
+    def handle_drive_config_response(self, future):
+        response = future.result()
+        self.max_wheel_velocity = response.velocity
+        self.max_wheel_acceleration = response.acceleration
+        self.micro_steps = response.microsteps
 
     def battery_state_callback(self, msg):
         """

@@ -84,19 +84,34 @@ class Renderer:
         self.render_motor_state(robot)
         self.render_position(robot)
         self.render_battery_voltage(robot)
+        self.render_micro_steps(robot)
+        self.render_max_wheel_velocity(robot)
+        self.render_max_wheel_acceleration(robot)
+
+    def render_motor_state(self, robot):
+        self.draw_text('Motors Enabled' if robot.motors_enabled else 'Motors Disabled',
+                       (0, 255, 255) if robot.motors_enabled else (255, 0, 0), (self.WIDTH * 0.85, self.HEIGHT * 0.01))
 
     def render_position(self, robot):
         self.draw_text('Position: ' + str(round(robot.pose.x, 2)) + "x " + str(round(robot.pose.y, 2)) + "y "
                        '(' + str(round(robot.pose.rot * 180 / math.pi, 1)) + "°)",
                        (255, 255, 255), (self.WIDTH * 0.81, self.HEIGHT * 0.05))
 
-    def render_motor_state(self, robot):
-        self.draw_text('Motors Enabled' if robot.motors_enabled else 'Motors Disabled',
-                       (0, 255, 255) if robot.motors_enabled else (255, 0, 0), (self.WIDTH * 0.85, self.HEIGHT * 0.01))
-
     def render_battery_voltage(self, robot):
         self.draw_text('Battery Voltage: ' + str(round(robot.battery_voltage, 2)),
-                       (255, 255, 255), (self.WIDTH * 0.81, self.HEIGHT * 0.1))
+                       (255, 255, 255), (self.WIDTH * 0.81, self.HEIGHT * 0.08))
+
+    def render_micro_steps(self, robot):
+        self.draw_text('Micro steps: ' + str(robot.micro_steps), (255, 255, 255),
+                       (self.WIDTH * 0.81, self.HEIGHT * 0.11))
+
+    def render_max_wheel_velocity(self, robot):
+        self.draw_text('Max wheel velocity: ' + str(round(robot.max_wheel_velocity, 2)), (255, 255, 255),
+                       (self.WIDTH * 0.81, self.HEIGHT * 0.14))
+
+    def render_max_wheel_acceleration(self, robot):
+        self.draw_text('Max wheel acceleration: ' + str(round(robot.max_wheel_acceleration, 2)), (255, 255, 255),
+                       (self.WIDTH * 0.81, self.HEIGHT * 0.17))
 
     def draw_text(self, text, color, position):
         """

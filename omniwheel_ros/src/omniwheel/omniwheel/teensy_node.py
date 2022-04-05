@@ -136,39 +136,37 @@ class TeensyNode(Node):
         """ Handles the micro_step part of the DriveConfig service call.
         Check if the requested value is valid and if so, requests the change with the teensy.
         """
-        if request.micro_steps <= 0 or request.micro_steps not in self.valid_microsteps:
-            response.micro_steps = self.micro_steps
-        else:
+        if request.micro_steps > 0 and request.micro_steps in self.valid_microsteps:
             command = ("{M;%d}" % request.micro_steps).encode()
             self.get_logger().info(command)
-            # self.ser.write(command)
+            self.ser.write(command)
             self.micro_steps = request.micro_steps
+        response.micro_steps = self.micro_steps
 
     def handle_velocity_change(self, request, response):
         """ Handles the velocity part of the DriveConfig service call.
         Check if the requested value is valid and if so, requests the change with the teensy.
         """
-        if request.velocity <= 0:
-            response.velocity = self.velocity
-        else:
+        if request.velocity > 0:
             vel = round(request.velocity, 2)
             command = ("{S;%f}" % vel).encode()
             self.get_logger().info(command)
-            # self.ser.write(command)
+            self.ser.write(command)
             self.velocity = vel
+        response.velocity = self.velocity
 
     def handle_acceleration_change(self, request, response):
         """ Handles the acceleration part of the DriveConfig service call.
         Check if the requested value is valid and if so, requests the change with the teensy.
         """
-        if request.acceleration <= 0:
-            response.acceleration = self.acceleration
-        else:
+        if request.acceleration > 0:
             acc = round(request.acceleration, 2)
             command = ("{A;%f}" % acc).encode()
             self.get_logger().info(command)
-            # self.ser.write(command)
+            self.ser.write(command)
             self.acceleration = acc
+
+        response.acceleration = self.acceleration
 
     def controller_callback(self, msg):
         """ Callback for the controller_value subscriber
