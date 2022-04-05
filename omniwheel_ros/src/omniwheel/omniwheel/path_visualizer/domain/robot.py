@@ -25,13 +25,16 @@ class Robot:
 
     def __init__(self, node):
         self.node = node
+        # Topic subscriptions
         node.create_subscription(PoseMsg, 'omniwheel_pose', self.pose_update, 10)
-        self.enable_motors_client = node.create_client(EnableMotors, 'enable_motors')
-        self.position_client = node.create_client(SetPose, 'set_position')
-        self.waypoint_client = ActionClient(node, Waypoints, 'waypoints')
-        self.waypoint_goal_handle = None  # Used for action cancellation
         node.create_subscription(MotorState, 'motor_state', self.motor_state_callback, 10)
         node.create_subscription(BatteryState, 'battery_state', self.battery_state_callback, 10)
+        # Service clients
+        self.enable_motors_client = node.create_client(EnableMotors, 'enable_motors')
+        self.position_client = node.create_client(SetPose, 'set_position')
+        # Action client
+        self.waypoint_client = ActionClient(node, Waypoints, 'waypoints')
+        self.waypoint_goal_handle = None  # Used for action cancellation
 
         self.pose = Pose(0, 0, 0)  # The current pose of the robot, updated by omniwheel_pose messages
         self.motors_enabled = False  # Motor state, updated by motor_state messages

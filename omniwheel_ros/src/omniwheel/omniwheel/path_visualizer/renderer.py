@@ -10,11 +10,11 @@ from omniwheel.path_visualizer.domain.pose import Pose
 
 class Renderer:
 
-    def __init__(self):
+    def __init__(self, width, height):
         pygame.init()
         pygame.display.init()
-        self.WIDTH = 1400
-        self.HEIGHT = 1000
+        self.WIDTH = width
+        self.HEIGHT = height
         os.environ['SDL_VIDEO_WINDOW_POS'] = '%i,%i' % (1920 - 1405, 80)
         self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
         pygame.display.set_caption("Omniwheel")
