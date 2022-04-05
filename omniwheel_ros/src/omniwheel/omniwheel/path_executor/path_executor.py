@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.action import ActionServer
 from rclpy.node import Node
-from rclpy.executors import StaticSingleThreadedExecutor
+from rclpy.executors import MultiThreadedExecutor
 
 import time
 import numpy as np
@@ -188,7 +188,7 @@ class PathExecutor(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    executor = StaticSingleThreadedExecutor()
+    executor = MultiThreadedExecutor()
     path_executor = PathExecutor()
     executor.add_node(path_executor)
 
