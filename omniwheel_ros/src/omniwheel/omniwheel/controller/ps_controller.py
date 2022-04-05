@@ -130,7 +130,7 @@ class PSController(Node):
             This is the case, if we already sent zeros and the current controller values are all zero.
         """
         return (self.last_sent_zeros
-                and abs(self.controller_x) <= 0.1 and abs(self.controller_y) <= 0.1 and abs(self.controller_rot) <= 0.1)
+                and abs(self.controller_x) <= 0.1 and abs(self.controller_y) <= 0.1 and abs(self.controller_rotation) <= 0.1)
 
     def check_zeros(self):
         """ Check whether the current controller values are considered zeros.
