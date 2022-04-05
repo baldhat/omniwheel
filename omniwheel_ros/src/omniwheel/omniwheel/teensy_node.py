@@ -27,7 +27,11 @@ class TeensyNode(Node):
         self.enable_publisher = self.create_publisher(MotorState, 'motor_state', 10)
         self.battery_publisher = self.create_publisher(BatteryState, 'battery_state', 10)
 
-        self.ser = Serial('/dev/ttyACM0', 4000000)
+        try:
+            self.ser = Serial('/dev/ttyACM0', 4000000)
+        except:
+            # Sometimes the teensy connects under this name
+            self.ser = Serial('/dev/ttyACM1', 4000000)
 
         self.motors_enabled = False
         self.velocity = self.get_teensy_velocity()
