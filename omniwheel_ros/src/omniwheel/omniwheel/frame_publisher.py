@@ -1,29 +1,24 @@
-from geometry_msgs.msg import TransformStamped
-
 import rclpy
 from rclpy.node import Node
-
 from tf2_ros import TransformBroadcaster
-
 import tf_transformations
 
+from geometry_msgs.msg import TransformStamped
 from omniwheel_interfaces.msg import Pose as PoseMsg
 
 
 class FramePublisher(Node):
+    """ Creates a Transformation from the omniwheel_pose topic and publishes it. """
 
     def __init__(self):
         super().__init__('omniwheel_frame_publisher')
-
         self.br = TransformBroadcaster(self)
-
-        self.subscription = self.create_subscription(
-            PoseMsg,
-            'omniwheel_pose',
-            self.handle_turtle_pose,
-            1)
+        self.subscription = self.create_subscription(PoseMsg, 'omniwheel_pose', self.handle_turtle_pose, 1)
 
     def handle_turtle_pose(self, msg: PoseMsg):
+        """ Callback for the omniwheel_pose topic messages.
+        Creates TransformStamped object, adds the information from the pose message and broadcasts it.
+        """
         t = TransformStamped()
 
         t.header.stamp = self.get_clock().now().to_msg()
@@ -46,9 +41,5 @@ class FramePublisher(Node):
 def main():
     rclpy.init()
     node = FramePublisher()
-    try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
-
+    rclpy.spin(node)
     rclpy.shutdown()
