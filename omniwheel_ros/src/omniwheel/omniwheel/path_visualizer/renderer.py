@@ -99,5 +99,5 @@ class Renderer:
         pos = (np.array([pixel_pos[0], pixel_pos[1]]) - self.display_offset) / self.MAP_SCALE
         return np.array((pos[0], -pos[1]))
 
-    def zoom(self, y):
+    def change_zoom(self, y):
         self.MAP_SCALE *= 2 if y > 0 else 0.5
