@@ -28,8 +28,8 @@ class PSController(Node):
         super().__init__('controller_publisher')
         self.publisher_ = self.create_publisher(ControllerValue, 'controller_value', 10)
         self.enable_motors_client = self.create_client(EnableMotors, 'enable_motors')
-        self.conroller_value_timer = self.create_timer(0.05, self.update_controller_values)
         self.create_subscription(MotorState, 'motor_state', self.motor_state_callback, 10)
+        self.controller_value_timer = self.create_timer(0.05, self.update_controller_values)
 
         # Flag showing if the motors of the robot are currently enabled. This value is set whenever a motor_state
         # message is received.
@@ -74,6 +74,10 @@ class PSController(Node):
 
     def color(self, red, green, blue):
         """ Set the color of the PS4 Controller to the given RGB value.
+
+            For this to work without root permission problems, the udev rules in the udev directoy need to be copied
+            to the /etc/udev/rules.d directory and the user needs to be added to the input group. For these changes
+            to take effect, the user might need to logout and login again.
         """
         colors = ['red', 'green', 'blue']
         for color in colors:

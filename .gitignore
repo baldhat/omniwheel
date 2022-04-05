@@ -8,3 +8,10 @@ python/.idea/vcs.xml
 omniwheel_ros/build
 omniwheel_ros/install
 omniwheel_ros/log
+.idea
+*__pycache__*
+*.vscode*
+*.pyc
+omniwheel_ros/src/omniwheel/omniwheel/__pycache__/__init__.cpython-38.pyc
+omniwheel_ros/src/omniwheel/omniwheel/__pycache__/path_visualizer.cpython-38.pyc
+omniwheel_ros/src/omniwheel/omniwheel/__pycache__/__init__.cpython-38.pyc

@@ -2,9 +2,9 @@
 #define configuration_h
 
 float getVelocity();
-float getAccelleration();
+float getAcceleration();
 void setVelocity(float speed);
-void setAccelleration(float accelleration);
+void setAcceleration(float acceleration);
 int getMicrosteps();
 void setMicrosteps(int micro_steps);
 

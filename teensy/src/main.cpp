@@ -6,40 +6,45 @@
 #include "configuration.h"
 #include "helper.h"
 
-#define MOTOR_REVS_PER_SECOND_BY_METERS_PER_SECOND 48 // grob
-#define ROTATION_PART 0.3
-#define STEPS_PER_REVOLUTION 200
+#define MOTOR_REVS_PER_SECOND_BY_METERS_PER_SECOND 48  // roughly
+#define ROTATION_PART 0.3  // how much of the maximum wheel speed is reserved for rotation
+#define STEPS_PER_REVOLUTION 200  // number of full steps for one motor revolution
 
-// Micro Step Define Pins
+#define VELOCITY_UPDATE_PERIOD_MICROSECONDS 50000  // 50 ms
+
+// Pin numbers of the micro step selection pins 
 #define MS1 26
 #define MS2 25
 #define MS3 24
+
+// Analog input pin for the battery voltage divider.
 #define VBAT 9
 /*
   2.988V = 925 = 24.24V
   900 = 23.66V
 */
 
-int enablePins[] = {2, 5, 8};
+int enablePins[] = {2, 5, 8}; // Pin numbers of the enable pins of the stepper motor drivers
 
-int micro_steps;
-float default_velocity;
-float default_accelleration;
-int steps_per_rev_with_micro_stepping;
+int micro_steps; // Current number of micro steps for the stepper motor (drivers)
+float default_velocity; // maximum velocity a wheel can be driven at
+float default_acceleration; // Acceleration of the robot
+int steps_per_rev_with_micro_stepping; // number of steps per motor revolution
 
-boolean interactiveModeEnabled;
+// Flag stating whether the robot is in the mode where it can receive drive commands
+boolean drivingMode;
 
-float wheel_velocities[3];
-float target_velocities[3];
-float accellerations[3];
-float wheel_phases[3] = {2.61799, 0.523599, 4.71239};
+float wheel_velocities[3]; // Current velocities of the wheels
+float target_velocities[3]; // Target velocities of the wheels, towards which the robot accelerates
+float accelerations[3]; // Current accelerations of the wheels
+float WHEEL_PHASES[3] = {2.61799, 0.523599, 4.71239};
 
 void setup() {
+  // The Teensy USB Serial ignores this number and just uses the maximum
+  // available USB speed:
   Serial.begin(4000000);
 
-  pinMode(MS1, OUTPUT);
-  pinMode(MS2, OUTPUT);
-  pinMode(MS3, OUTPUT);
+  pinMode(MS1, OUTPUT); pinMode(MS2, OUTPUT); pinMode(MS3, OUTPUT);
 
   for (int i = 2; i < 11; i++) pinMode(i, OUTPUT); // Set all driver pins to OUTPUT
   for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], HIGH); // Disable all motors
@@ -47,81 +52,100 @@ void setup() {
   loadDefaultValues();
 }
 
+
+/**
+ * Execute a command. The meaning of the parameters depends upon the command and can be looked up in the wiki.
+ */
 void runCommand(Command command) {
   switch(command.type) {
     case 's':
       println(getVelocity()); break;
     case 'a':
-      println(getAccelleration()); break;
+      println(getAcceleration()); break;
     case 'S':
       setVelocity(command.parameters[0]);
       default_velocity = command.parameters[0];
       break;
     case 'A':
-      setAccelleration(command.parameters[0]);
-      default_accelleration = command.parameters[0];
+      setAcceleration(command.parameters[0]);
+      default_acceleration = command.parameters[0];
       break;
     case 'M':
-      setMicrosteps((int) command.parameters[0]);
-      setMicrostepPins((int) command.parameters[0]);
-      micro_steps = (int) command.parameters[0];
-      steps_per_rev_with_micro_stepping = STEPS_PER_REVOLUTION * micro_steps;
+      changeMicroSteps(command);
       break;
     case 'm':
       println(getMicrosteps()); break;
     case 'b':
-      println(getBatteryLevel()); break;
+      println(getBatteryVoltage()); break;
     case 'I':
-      interactiveDriving(); break;
+      drivingLoop(); break;
 
   }
 }
 
+/**
+ * In driving mode only drive commands and battery level commands are allowed.
+ */
 void runInteractiveCommand(Command command) {
   switch (command.type) {
     case 'I':
       updateTargets(command); break;
     case 'E':
-      interactiveModeEnabled = false;
+      drivingMode = false;
       break;
     case 'b':
-      println(getBatteryLevel()); break;
+      println(getBatteryVoltage()); break;
   }
 }
 
+
+/**
+ * Change the current driving target_velocities and accelerations based on 
+ * the given command.
+ */
 void updateTargets(Command command) {
+  float direction = command.parameters[0];
   float velocityParam = command.parameters[1];
   float angularVelocityParam = command.parameters[2];
 
+  // Clamp the velocities
   if (velocityParam > 1) velocityParam = 1;
   if (velocityParam < -1) velocityParam = -1;
   if (angularVelocityParam > 1) angularVelocityParam = 1;
   if (angularVelocityParam < -1) angularVelocityParam = -1;
 
-  float direction = command.parameters[0];
+  // Convert relative velocities to the actual velocity values
   float velocity = velocityParam * default_velocity * (1 - ROTATION_PART);
   float angularVelocity = angularVelocityParam * default_velocity * ROTATION_PART;
 
+  // By how much do the new target velocities differ from the current wheel velocities
   float delta_vs[3];
 
+  // Calculate new target velocities
   for (int i = 0; i < 3; i++) {
-    target_velocities[i] = cos(wheel_phases[i] - direction) * velocity + angularVelocity;
+    target_velocities[i] = cos(WHEEL_PHASES[i] - direction) * velocity + angularVelocity;
     delta_vs[i] = abs(target_velocities[i] - wheel_velocities[i]);
-    accellerations[i] = default_accelleration;
+    accelerations[i] = default_acceleration;
   }
 
+  // The greatest delta_v gets the maximum acceleration, the rest get accelerations
+  // proportional to their delta_v / max_delta_v. This ensures all the wheels finishing
+  // acceleration at the same time. 
   if (delta_vs[0] != 0 && delta_vs[0] >= delta_vs[1] && delta_vs[0] >= delta_vs[2]) {
-    accellerations[1] = default_accelleration * (delta_vs[1] / delta_vs[0]);
-    accellerations[2] = default_accelleration * (delta_vs[2] / delta_vs[0]);
+    accelerations[1] = default_acceleration * (delta_vs[1] / delta_vs[0]);
+    accelerations[2] = default_acceleration * (delta_vs[2] / delta_vs[0]);
   } else if (delta_vs[1] != 0 && delta_vs[1] >= delta_vs[0] && delta_vs[1] >= delta_vs[2]) {
-    accellerations[0] = default_accelleration * (delta_vs[0] / delta_vs[1]);
-    accellerations[2] = default_accelleration * (delta_vs[2] / delta_vs[1]);
+    accelerations[0] = default_acceleration * (delta_vs[0] / delta_vs[1]);
+    accelerations[2] = default_acceleration * (delta_vs[2] / delta_vs[1]);
   } else if (delta_vs[2] != 0) {
-    accellerations[0] = default_accelleration * (delta_vs[0] / delta_vs[2]);
-    accellerations[1] = default_accelleration * (delta_vs[1] / delta_vs[2]);
+    accelerations[0] = default_acceleration * (delta_vs[0] / delta_vs[2]);
+    accelerations[1] = default_acceleration * (delta_vs[1] / delta_vs[2]);
   }
 }
 
+/**
+ * Handle incoming serial messages. If they are a valid command, run them.
+ */
 void handleSerial() {
   boolean fullCommandReceived = receiveSerialData();
   if (fullCommandReceived) {
@@ -132,15 +156,20 @@ void handleSerial() {
   }
 }
 
-void interactiveDriving() {
-  for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], LOW);
+/**
+ * Drive the motors until the drivingMode is disabled. Update the wheel velocities according
+ * to the commands read via serial.
+ */
+void drivingLoop() {
+  for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], LOW); // Enable motors
 
-  interactiveModeEnabled = true;
+  drivingMode = true;
 
   long last_state_changes[3];
   float abs_spike_periods[3];
   long steps[3];
 
+  // Initialize variables with appropriate values.
   for (int i = 0; i < 3; i++) {
     last_state_changes[i] = 0;
     wheel_velocities[i] = 0;
@@ -150,33 +179,38 @@ void interactiveDriving() {
   }
 
   long last_velocity_update = micros();
-  unsigned long loop_counter = 0;
 
-  while (interactiveModeEnabled) {
+  while (drivingMode) {
     if (Serial.available() > 0) {
       handleSerial();
     }
-    loop_counter++;
 
+    // For each motors:
+    // Check if the time has passed to flip the step pin. This time is determined by the 
+    // absolute spike periods. The spike period isn't defined for zero velocities, so we don't 
+    // flip the pin.
+    // Increase/decrease the motor steps on every pin flip. (So we actually log half steps)
     if (micros() - last_state_changes[0] >= abs_spike_periods[0] && wheel_velocities[0] != 0) {
-      GPIO9_DR_TOGGLE ^= 1 << 5; // Pin 3
+      GPIO9_DR_TOGGLE ^= 1 << 5; // Teensy Pin 3
       last_state_changes[0] = micros();
       if (wheel_velocities[0] > 0) steps[0]++; else steps[0]--;
     }
 
     if (micros() - last_state_changes[1] >= abs_spike_periods[1] && wheel_velocities[1] != 0) {
-      GPIO7_DR_TOGGLE ^= 1 << 10; // Pin 6
+      GPIO7_DR_TOGGLE ^= 1 << 10; // Teensy Pin 6
       last_state_changes[1] = micros();
       if (wheel_velocities[1] > 0) steps[1]++; else steps[1]--;
     }
 
     if (micros() - last_state_changes[2] >= abs_spike_periods[2] && wheel_velocities[2] != 0) {
-      GPIO7_DR_TOGGLE ^= 1 << 11; // Pin 9
+      GPIO7_DR_TOGGLE ^= 1 << 11; // Teensy Pin 9
       last_state_changes[2] = micros();
       if (wheel_velocities[2] > 0) steps[2]++; else steps[2]--;
     }
 
-    if (micros() - last_velocity_update > 50000) {
+    // After VELOCITY_UPDATE_PERIOD_MICROSECONDS have passed, update the velocities and send 
+    // the recorded (half)steps.
+    if (micros() - last_velocity_update > VELOCITY_UPDATE_PERIOD_MICROSECONDS) {
       last_velocity_update = micros();
       updateVelocities(abs_spike_periods);
       setDirectionPins();
@@ -185,39 +219,47 @@ void interactiveDriving() {
     }
   }
 
-  for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], HIGH);
+  for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], HIGH); // When leaving, disable motors
 }
 
+/**
+ * Accelerate by adding the needed velocity to each wheel and recalculating
+ * the spike_periods for the motor drivers.
+ * Handles acceleration (wheel_velocity < target_velocity) and deceleration.
+ * If the target velocity gets overshot, the wheel_velocity gets hard-set to the target velocity.
+ */
 void updateVelocities(float abs_spike_periods[3]) {
+  float acceleration_fraction = (float) 1000000 / VELOCITY_UPDATE_PERIOD_MICROSECONDS;
   for (int i = 0; i < 3;  i++) {
     if (wheel_velocities[i] < target_velocities[i]) {
-      wheel_velocities[i] += accellerations[i] / 20;
+      wheel_velocities[i] += accelerations[i] / acceleration_fraction;
       if (wheel_velocities[i] > target_velocities[i]) {
         wheel_velocities[i] = target_velocities[i];
       }
       abs_spike_periods[i] = abs(velocityPWMConversion(wheel_velocities[i])) / 2;
     } else if (wheel_velocities[i] > target_velocities[i]) {
-      wheel_velocities[i] -= accellerations[i] / 20;
+      wheel_velocities[i] -= accelerations[i] / acceleration_fraction;
       if (wheel_velocities[i] < target_velocities[i]) wheel_velocities[i] = target_velocities[i];
       abs_spike_periods[i] = abs(velocityPWMConversion(wheel_velocities[i])) / 2;
     }
   }
 }
 
+/**
+ * Sets the output of the stepper driver direction pins according to the sign 
+ * of the wheel velocities.
+ */
 void setDirectionPins() {
-  // if (wheel_velocities[0] > 0) GPIO9_DR_TOGGLE |= 1 << 6; // Pin 4
-  // else GPIO9_DR_TOGGLE &= ~(1 << 6);
-  //
-  // if (wheel_velocities[1] > 0) GPIO7_DR_TOGGLE |= 1 << 17; // Pin 7
-  // else GPIO7_DR_TOGGLE &= ~(1 << 17);
-  //
-  // if (wheel_velocities[2] > 0) GPIO7_DR_TOGGLE |= 1; // Pin 10
-  // else GPIO7_DR_TOGGLE &= ~1;
   digitalWriteFast(4, wheel_velocities[0] > 0);
   digitalWriteFast(7, wheel_velocities[1] > 0);
   digitalWriteFast(10, wheel_velocities[2] > 0);
 }
 
+/**
+ * Send the steps of each motor over serial for odometry.
+ * Since the steps are updated on every pin flip, they are actually half steps,
+ * which must be considered when evaluating them.
+ */
 void sendSteps(long steps[3]) {
   Serial.print("{");
   Serial.print(steps[0]); Serial.print(";");
@@ -234,6 +276,10 @@ float velocityPWMConversion(float value) {
   else return 1000000 / (value * MOTOR_REVS_PER_SECOND_BY_METERS_PER_SECOND * steps_per_rev_with_micro_stepping);
 }
 
+/**
+ * Set the micro step configuration pins of the drivers according to the current micro steps.
+ * The table describing the possible combinations can be found in the wiki.
+ */ 
 void setMicrostepPins(int micro_steps) {
   switch (micro_steps) {
     case 1:
@@ -253,18 +299,35 @@ void setMicrostepPins(int micro_steps) {
   }
 }
 
+
+/**
+ * Load the default values from the EEPROM and set the corresponding variables and pins.
+ */
 void loadDefaultValues() {
   micro_steps = getMicrosteps();
   default_velocity = getVelocity();
-  default_accelleration = getAccelleration();
+  default_acceleration = getAcceleration();
   steps_per_rev_with_micro_stepping = STEPS_PER_REVOLUTION * micro_steps;
   setMicrostepPins(micro_steps);
 }
 
-float getBatteryLevel() {
-  return analogRead(VBAT) * 0.0232 + 2.78; // Grobe lineare Annäherung
+/**
+ * Return the current battery voltage approximated by a line.
+ */
+float getBatteryVoltage() {
+  return analogRead(VBAT) * 0.0232 + 2.78;
 }
 
+void changeMicroSteps(Command command) {
+  setMicrosteps((int) command.parameters[0]);
+  setMicrostepPins((int) command.parameters[0]);
+  micro_steps = (int) command.parameters[0];
+  steps_per_rev_with_micro_stepping = STEPS_PER_REVOLUTION * micro_steps;
+}
+
+/**
+ * Wait for full commands and execute them.
+ */
 void loop() {
   boolean fullCommandReceived = receiveSerialData();
   if (fullCommandReceived) {
@@ -273,5 +336,5 @@ void loop() {
       runCommand(command);
     } else Serial.println("Could not parse the command");
   }
-  delay(1000);
+  delay(1);
 }
