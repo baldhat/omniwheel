@@ -18,7 +18,7 @@ class Robot:
         - battery_state
     Service clients:
         - enable_motors
-        - set_position
+        - set_pose
     Action servers:
         - waypoints
     """
@@ -31,7 +31,7 @@ class Robot:
         node.create_subscription(BatteryState, 'battery_state', self.battery_state_callback, 10)
         # Service clients
         self.enable_motors_client = node.create_client(EnableMotors, 'enable_motors')
-        self.position_client = node.create_client(SetPose, 'set_position')
+        self.position_client = node.create_client(SetPose, 'set_pose')
         # Action client
         self.waypoint_client = ActionClient(node, Waypoints, 'waypoints')
         self.waypoint_goal_handle = None  # Used for action cancellation
