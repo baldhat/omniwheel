@@ -14,6 +14,21 @@ from omniwheel_interfaces.srv import EnableMotors
 from omniwheel.helper.helper import to_polar
 
 
+def color(red, green, blue):
+    """ Set the color of the PS4 Controller to the given RGB value.
+
+        For this to work without root permission problems, the udev rules in the udev directoy need to be copied
+        to the /etc/udev/rules.d directory and the user needs to be added to the input group. For these changes
+        to take effect, the user might need to logout and login again.
+    """
+    colors = ['red', 'green', 'blue']
+    for color in colors:
+        for path in glob(f'/sys/class/leds/0005:054C:*:{color}'):
+            if color == 'red': f = open(path + '/brightness', 'a'); f.write(str(red)); f.close()
+            if color == 'green': f = open(path + '/brightness', 'a'); f.write(str(green)); f.close()
+            if color == 'blue': f = open(path + '/brightness', 'a'); f.write(str(blue)); f.close()
+
+
 class PSController(Node):
     """ Publishes the command read from a PS4 Controller to the controller_value topic.
 
@@ -31,7 +46,7 @@ class PSController(Node):
         self.create_subscription(MotorState, 'motor_state', self.motor_state_callback, 10)
         self.controller_value_timer = self.create_timer(0.05, self.update_controller_values)
 
-        # Flag showing if the motors of the robot are currently enabled. This value is set whenever a motor_state
+        # Flag showing if the motors of the robot are currently enabled. This value is updated whenever a motor_state
         # message is received.
         self.motors_enabled = False
 
@@ -45,11 +60,11 @@ class PSController(Node):
             try:
                 self.gamepad = InputDevice('/dev/input/event2')
                 connected = True
-                self.color(255, 0, 0)
+                color(255, 0, 0)
             except:
                 time.sleep(1)
 
-        # The zero point of the controller joystick values
+        # The value the controller returns when the stick is in the middle position
         self.JOYSTICK_ZERO_POINT = 127
 
         # The last read values of the controller joysticks
@@ -71,20 +86,6 @@ class PSController(Node):
                     elif event.type == ecodes.EV_KEY:
                         self.handle_buttons(event)
             rclpy.spin_once(self, timeout_sec=0.01)
-
-    def color(self, red, green, blue):
-        """ Set the color of the PS4 Controller to the given RGB value.
-
-            For this to work without root permission problems, the udev rules in the udev directoy need to be copied
-            to the /etc/udev/rules.d directory and the user needs to be added to the input group. For these changes
-            to take effect, the user might need to logout and login again.
-        """
-        colors = ['red', 'green', 'blue']
-        for color in colors:
-            for path in glob(f'/sys/class/leds/0005:054C:*:{color}'):
-                if color == 'red': f = open(path + '/brightness', 'a'); f.write(str(red)); f.close()
-                if color == 'green': f = open(path + '/brightness', 'a'); f.write(str(green)); f.close()
-                if color == 'blue': f = open(path + '/brightness', 'a'); f.write(str(blue)); f.close()
 
     def handle_joysticks(self, event):
         """ Handle controller events corresponding to joystick movements.
@@ -129,7 +130,7 @@ class PSController(Node):
             This is the case, if we already sent zeros and the current controller values are all zero.
         """
         return (self.last_sent_zeros
-                and self.controller_x <= 0.1 and self.controller_y <= 0.1 and self.controller_y <= 0.1)
+                and abs(self.controller_x) <= 0.1 and abs(self.controller_y) <= 0.1 and abs(self.controller_rot) <= 0.1)
 
     def check_zeros(self):
         """ Check whether the current controller values are considered zeros.
@@ -155,7 +156,7 @@ class PSController(Node):
             Set the motors_enabled flag to the corresponding value and change the color of the controller RGB LEDs.
         """
         self.motors_enabled = msg.enabled
-        self.color(0, 255, 0) if self.motors_enabled else self.color(255, 0, 0)
+        color(0, 255, 0) if self.motors_enabled else color(255, 0, 0)
 
     def send_enable_motors(self, value):
         """ Call the EnableMotors Service to enable or disable the motors of the robot.
@@ -172,7 +173,7 @@ class PSController(Node):
         try:
             response = future.result()
             self.motors_enabled = response.enabled
-            self.color(0, 255, 0) if self.motors_enabled else self.color(255, 0, 0)
+            color(0, 255, 0) if self.motors_enabled else color(255, 0, 0)
         except Exception as e:
             self.get_logger().info(
                 'Service call failed %r' % (e,))
@@ -180,13 +181,7 @@ class PSController(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-
-    controller_publisher = PSController()
-
-    try:
-        controller_publisher.run()
-    except KeyboardInterrupt:
-        print('Bye')
+    PSController().run()
 
 
 if __name__ == '__main__':
