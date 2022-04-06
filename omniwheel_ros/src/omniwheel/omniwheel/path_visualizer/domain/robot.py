@@ -13,7 +13,7 @@ class Robot:
     This class represents the omniwheel robot to the path_visualizer.
 
     Subscribers:
-        - omniwheel_pose
+        - wheel_odometry_pose
         - motor_state
         - battery_state
     Service clients:
@@ -27,7 +27,7 @@ class Robot:
     def __init__(self, node):
         self.node = node
         # Topic subscriptions
-        node.create_subscription(PoseMsg, 'omniwheel_pose', self.pose_update, 10)
+        node.create_subscription(PoseMsg, 'wheel_odometry_pose', self.pose_update, 10)
         node.create_subscription(MotorState, 'motor_state', self.motor_state_callback, 10)
         node.create_subscription(BatteryState, 'battery_state', self.battery_state_callback, 10)
         # Service clients

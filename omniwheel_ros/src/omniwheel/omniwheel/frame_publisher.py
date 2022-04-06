@@ -8,12 +8,15 @@ from omniwheel_interfaces.msg import Pose as PoseMsg
 
 
 class FramePublisher(Node):
-    """ Creates a Transformation from the omniwheel_pose topic and publishes it. """
+    """ Creates a Transformation from the omniwheel_pose topic and publishes it.
+    Subscriber:
+        - wheel_odometry_pose
+    """
 
     def __init__(self):
-        super().__init__('omniwheel_frame_publisher')
+        super().__init__('base_link_frame_publisher')
         self.br = TransformBroadcaster(self)
-        self.subscription = self.create_subscription(PoseMsg, 'omniwheel_pose', self.handle_turtle_pose, 1)
+        self.subscription = self.create_subscription(PoseMsg, 'wheel_odometry_pose', self.handle_turtle_pose, 1)
 
     def handle_turtle_pose(self, msg: PoseMsg):
         """ Callback for the omniwheel_pose topic messages.
@@ -22,8 +25,8 @@ class FramePublisher(Node):
         t = TransformStamped()
 
         t.header.stamp = self.get_clock().now().to_msg()
-        t.header.frame_id = 'world'
-        t.child_frame_id = "omniwheel"
+        t.header.frame_id = 'odom'
+        t.child_frame_id = "base_link"
 
         t.transform.translation.x = msg.x
         t.transform.translation.y = msg.y

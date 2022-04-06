@@ -24,7 +24,7 @@ class PathExecutor(Node):
         Publishers:
             - controller_value
         Subscribers:
-            - omniwheel_pose
+            - wheel_odometry_pose
         Service clients:
             - enable_motors
         Action servers:
@@ -37,7 +37,7 @@ class PathExecutor(Node):
                                                     self.execute_callback, cancel_callback=self.cancel_callback)
         self.publisher_ = self.create_publisher(ControllerValue, 'controller_value', 10)
         self.enable_motors_client = self.create_client(EnableMotors, 'enable_motors')
-        self.pose_subscription = self.create_subscription(Pose, 'omniwheel_pose', self.pose_callback, 10)
+        self.pose_subscription = self.create_subscription(Pose, 'wheel_odometry_pose', self.pose_callback, 10)
 
         # The current pose of the robot. This gets updated in self.pose_callback
         self.pose = Pose()
