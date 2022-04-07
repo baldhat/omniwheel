@@ -172,12 +172,12 @@ class TeensyNode(Node):
         """ Handles the micro_step part of the DriveConfig service call.
         Check if the requested value is valid and if so, requests the change with the teensy.
         """
-        if request.micro_steps > 0 and request.micro_steps in self.valid_micro_steps:
-            command = ("{M;%d}" % request.micro_steps).encode()
+        if request.microsteps > 0 and request.microsteps in self.valid_micro_steps:
+            command = ("{M;%d}" % request.microsteps).encode()
             self.get_logger().info(command)
             self.ser.write(command)
-            self.micro_steps = request.micro_steps
-        response.micro_steps = self.micro_steps
+            self.microsteps = request.microsteps
+        response.microsteps = self.microsteps
 
     def handle_velocity_change(self, request, response):
         """ Handles the velocity part of the DriveConfig service call.
