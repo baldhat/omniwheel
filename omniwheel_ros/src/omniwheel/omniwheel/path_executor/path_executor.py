@@ -17,7 +17,7 @@ from omniwheel_interfaces.srv import EnableMotors
 class PathExecutor(Node):
     """ The PathExecutor is primarily a ROS ActionServer to execute waypoint missions.
 
-        It also subscribes to the omniwheel_pose topic to receive feedback on the current robot position.
+        It also subscribes to the wheel_odometry topic to receive feedback on the current robot position.
         Before sending controller_values via the publisher, it sends the enable_motors service an enable command, and
         disables the motors afterwards.
 

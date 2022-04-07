@@ -21,7 +21,7 @@ class TeensyNode(Node):
     Subscribers:
         - controller_value
     Publishers:
-        - /wheel_odometry
+        - wheel_odometry
         - motor_state
         - battery_state
     Service servers:
@@ -70,16 +70,32 @@ class TeensyNode(Node):
         self.get_logger().info("Ready...")
 
     def odom_timer_callback(self):
-        """ Callback of the odometry timer.
-        Publishes the pose of the robot in the omniwheel_pose topic.
+        """ Callback for the odometry timer.
+        Publishes the pose and twist of the robot in the wheel_odometry topic.
         Also checks when the last time a controller_value msg was received. If none was received for 100ms, a soft stop
         is undertaken.
         """
         odom_msg = Odometry()
-        odom_msg.header.stamp = self.get_clock().now().to_msg()
-        odom_msg.header.frame_id = 'odom'
-        odom_msg.child_frame_id = 'base_link'
+        self.create_odom_msg_header(odom_msg)
+        self.create_odom_msg_pose(odom_msg)
+        self.create_odom_msg_twist(odom_msg)
+        self.odometry.publish(odom_msg)
 
+        if time.time() - self.last_twist_command > 0.1 and self.motors_enabled:
+            self.soft_stop()
+
+    def create_odom_msg_twist(self, odom_msg):
+        """ Creates the twist part for the Odometry messages """
+        odom_msg.twist.twist.linear.x = float(self.velocity[0])
+        odom_msg.twist.twist.linear.y = float(self.velocity[1])
+        odom_msg.twist.twist.linear.z = 0.0
+        odom_msg.twist.twist.angular.x = 0.0
+        odom_msg.twist.twist.angular.y = 0.0
+        odom_msg.twist.twist.angular.z = float(self.omega)
+        odom_msg.twist.covariance = np.identity(6).flatten()
+
+    def create_odom_msg_pose(self, odom_msg):
+        """ Creates the pose part for the Odometry messages """
         odom_msg.pose.pose.position.x = float(self.position[0])
         odom_msg.pose.pose.position.y = float(self.position[1])
         odom_msg.pose.pose.position.z = 0.0
@@ -88,19 +104,13 @@ class TeensyNode(Node):
         odom_msg.pose.pose.orientation.y = quaternion[1]
         odom_msg.pose.pose.orientation.z = quaternion[2]
         odom_msg.pose.pose.orientation.w = quaternion[3]
-        odom_msg.pose.covariance = np.identity(6)
+        odom_msg.pose.covariance = np.identity(6).flatten()
 
-        odom_msg.twist.twist.linear.x = float(self.velocity[0])
-        odom_msg.twist.twist.linear.y = float(self.velocity[1])
-        odom_msg.twist.twist.linear.z = 0.0
-        odom_msg.twist.twist.angular.x = 0.0
-        odom_msg.twist.twist.angular.y = 0.0
-        odom_msg.twist.twist.angular.z = float(self.omega)
-        odom_msg.twist.covariance = np.identity(6)
-
-        self.odometry.publish(odom_msg)
-        if time.time() - self.last_twist_command > 0.1 and self.motors_enabled:
-            self.soft_stop()
+    def create_odom_msg_header(self, odom_msg):
+        """ Creates the header and child_frame parts for the Odometry messages """
+        odom_msg.header.stamp = self.get_clock().now().to_msg()
+        odom_msg.header.frame_id = 'odom'
+        odom_msg.child_frame_id = 'base_link'
 
     def battery_timer_callback(self):
         """ Callback of the battery timer.

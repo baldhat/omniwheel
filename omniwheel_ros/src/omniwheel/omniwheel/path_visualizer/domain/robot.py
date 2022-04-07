@@ -40,7 +40,7 @@ class Robot:
         self.waypoint_client = ActionClient(node, Waypoints, 'waypoints')
         self.waypoint_goal_handle = None  # Used for action cancellation
 
-        self.pose = Pose2D(0, 0, 0)  # The current pose of the robot, updated by omniwheel_pose messages
+        self.pose = Pose2D(0, 0, 0)  # The current pose of the robot, updated by wheel_odometry messages
         self.twist = Twist2D(0, 0, 0)  # The current angular and linear velocities of the robot
         self.motors_enabled = False  # Motor state, updated by motor_state messages
         self.past_poses = [Pose2D(0, 0, 0)]  # List of previous poses of the robot, in order
@@ -65,7 +65,7 @@ class Robot:
 
     def pose_update(self, msg):
         """
-        Callback for messages of the omniwheel_pose topic.
+        Callback for messages of the wheel_odometry topic.
         """
         self.set_pose(msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.orientation.z)
         self.set_twist(msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.twist.angular.z)

@@ -7,7 +7,7 @@ from nav_msgs.msg import Odometry
 
 
 class FramePublisher(Node):
-    """ Creates a Transformation from the omniwheel_pose topic and publishes it.
+    """ Creates a Transformation from the wheel_odometry topic and publishes it.
     Subscriber:
         - /wheel_odometry
     """
@@ -18,7 +18,7 @@ class FramePublisher(Node):
         self.subscription = self.create_subscription(Odometry, '/wheel_odometry', self.handle_turtle_pose, 1)
 
     def handle_turtle_pose(self, msg: Odometry):
-        """ Callback for the omniwheel_pose topic messages.
+        """ Callback for the wheel_odometry topic messages.
         Creates TransformStamped object, adds the information from the pose message and broadcasts it.
         """
         t = TransformStamped()
