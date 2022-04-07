@@ -30,7 +30,8 @@ setup(
             'teensy_node = omniwheel.teensy_node:main',
             'path_vis = omniwheel.path_visualizer.path_visualizer:main',
             'path_exec = omniwheel.path_executor.path_executor:main',
-            'frame_publisher = omniwheel.frame_publisher:main'
+            'frame_publisher = omniwheel.frame_publisher:main',
+            "lidar_publisher = omniwheel.lidar.lidar_node:main"
         ],
     },
 )

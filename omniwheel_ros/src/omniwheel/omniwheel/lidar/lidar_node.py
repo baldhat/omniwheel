@@ -1,31 +1,80 @@
-# First import the library
+
 import pyrealsense2 as rs
 import numpy as np
 import cv2
 
-# Create a context object. This object owns the handles to all connected realsense devices
-pipeline = rs.pipeline()
-config = rs.config()
-config.enable_stream(rs.stream.depth, 1024, 768, rs.format.z16, 30)
-profile = pipeline.start(config)
+import rclpy
+from rclpy.node import Node
 
-try:
-    while True:
-        frames = pipeline.wait_for_frames()
-        depth = frames.get_depth_frame()
-        if not depth: continue
-
-        depth = frames.get_depth_frame()
-        depth_data = depth.as_frame().get_data()
-        np_image = np.asanyarray(depth_data)
-        depth_image_3d = np.dstack((np_image, np_image, np_image))
-        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image_3d, alpha=0.03), cv2.COLORMAP_JET)
-
-        if cv2.waitKey(25) & 0xFF == ord('q'):
-            break
-
-        cv2.imshow('Frame', depth_colormap)
+from sensor_msgs.msg import PointCloud2, PointField
 
 
-finally:
-    pipeline.stop()
+class LidarNode(Node):
+
+    def __init__(self):
+        super().__init__('lidar_publisher')
+        self.publisher_ = self.create_publisher(PointCloud2, 'lidar/points', 10)
+
+        self.pipeline = rs.pipeline()
+        config = rs.config()
+        config.enable_stream(rs.stream.depth, 320, 240, rs.format.z16, 30)
+
+        self.pipeline.start(config)
+
+        self.pc = rs.pointcloud()
+        self.decimate = rs.decimation_filter()
+        self.decimate.set_option(rs.option.filter_magnitude, 1)
+        self.colorizer = rs.colorizer()
+        self.filters = [rs.disparity_transform(),
+                   rs.spatial_filter(),
+                   rs.temporal_filter(),
+                   rs.disparity_transform(False)]
+
+    def read_points(self):
+        success, frames = self.pipeline.try_wait_for_frames()
+        depth_frame = frames.get_depth_frame().as_video_frame()
+        depth_frame = self.decimate.process(depth_frame)
+
+        for f in self.filters:
+            depth_frame = f.process(depth_frame)
+
+        points = self.pc.calculate(depth_frame)
+        points = np.asarray(points.get_vertices(2), dtype='float32').reshape((320, 240, 3))
+        depth = np.asanyarray(depth_frame.get_data()).reshape((320, 240))
+        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth, alpha=0.015), cv2.COLORMAP_HOT)
+        return np.concatenate((points, depth_colormap), 2)
+
+    def publish_points(self, points):
+        msg = PointCloud2()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = 'lidar_link'
+        msg.width = 320
+        msg.height = 240
+        ros_dtype = PointField.FLOAT32
+        dtype = np.float32
+        itemsize = np.dtype(dtype).itemsize
+        msg.fields = [PointField(
+            name=n, offset=i * itemsize, datatype=ros_dtype, count=1)
+            for i, n in enumerate('xyzrgb')]
+        msg.data = points.tobytes()
+        msg.is_dense = False
+        msg.is_bigendian = False
+        msg.point_step = 6 * itemsize
+        msg.row_step = 6 * itemsize * 320
+
+        self.publisher_.publish(msg)
+
+    def run(self):
+        while True:
+            rclpy.spin_once(self, timeout_sec=0.0)
+            points = self.read_points()
+            self.publish_points(points)
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    LidarNode().run()
+
+
+if __name__ == '__main__':
+    main()
