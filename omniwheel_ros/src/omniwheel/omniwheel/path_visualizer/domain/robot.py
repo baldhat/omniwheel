@@ -1,11 +1,11 @@
-from omniwheel.path_visualizer.domain.pose import Pose2D
-from omniwheel.path_visualizer.domain.twist import Twist2D
+from omniwheel.domain.pose import Pose2D
+from omniwheel.domain.twist import Twist2D
 
 from rclpy.action import ActionClient
 
 import tf_transformations
 
-from omniwheel_interfaces.msg import MotorState
+from omniwheel_interfaces.msg import MotorState, Pose as PoseMsg
 from omniwheel_interfaces.srv import EnableMotors, SetPose, DriveConfig
 from omniwheel_interfaces.action import Waypoints
 from sensor_msgs.msg import BatteryState

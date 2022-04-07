@@ -5,7 +5,7 @@ import pygame
 import numpy as np
 import math
 
-from omniwheel.path_visualizer.domain.pose import Pose2D
+from omniwheel.domain.pose import Pose2D
 
 
 class Renderer:

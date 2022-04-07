@@ -29,7 +29,7 @@ class FramePublisher(Node):
 
         t.transform.translation.x = msg.pose.pose.position.x
         t.transform.translation.y = msg.pose.pose.position.y
-        t.transform.translation.z = msg.pose.pose.position.z
+        t.transform.translation.z = msg.pose.pose.position.z + 0.065  # This is the offset of the center of the robot from the ground
         t.transform.rotation.x = msg.pose.pose.orientation.x
         t.transform.rotation.y = msg.pose.pose.orientation.y
         t.transform.rotation.z = msg.pose.pose.orientation.z

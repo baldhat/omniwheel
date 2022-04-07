@@ -3,15 +3,19 @@ from rclpy.action import ActionServer
 from rclpy.node import Node
 from rclpy.executors import MultiThreadedExecutor
 
+from omniwheel.domain.pose import Pose2D
+
 import time
 import numpy as np
 import math
+import tf_transformations
 
 from omniwheel.helper.helper import to_polar
 
 from omniwheel_interfaces.action import Waypoints
-from omniwheel_interfaces.msg import Pose, ControllerValue
+from omniwheel_interfaces.msg import ControllerValue, Pose as PoseMsg
 from omniwheel_interfaces.srv import EnableMotors
+from nav_msgs.msg import Odometry
 
 
 class PathExecutor(Node):
@@ -37,10 +41,10 @@ class PathExecutor(Node):
                                                     self.execute_callback, cancel_callback=self.cancel_callback)
         self.publisher_ = self.create_publisher(ControllerValue, 'controller_value', 10)
         self.enable_motors_client = self.create_client(EnableMotors, 'enable_motors')
-        self.pose_subscription = self.create_subscription(Pose, '/wheel_odometry', self.pose_callback, 10)
+        self.pose_subscription = self.create_subscription(Odometry, '/wheel_odometry', self.pose_callback, 10)
 
         # The current pose of the robot. This gets updated in self.pose_callback
-        self.pose = Pose()
+        self.pose = Pose2D(0, 0, 0)
 
         # Defines the distance in meters at which the executor assumes a waypoint to be reached.
         self.MAX_POS_ERROR = 0.01
@@ -57,8 +61,10 @@ class PathExecutor(Node):
             waypoint has been reached.
         """
         self.pre_execute()
+        poses = [self.pose_msg_to_pose2d(pose_msg) for pose_msg in goal_handle.request.poses]
+        self.get_logger().info(str(poses))
 
-        for pose in goal_handle.request.poses:
+        for pose in poses:
             self.drive_to_pose(pose)
             if not self.cancel_action_execution:
                 self.send_feedback(goal_handle)
@@ -83,7 +89,7 @@ class PathExecutor(Node):
         result.final_pose = self.pose
         return result
 
-    def drive_to_pose(self, pose: Pose):
+    def drive_to_pose(self, pose: Pose2D):
         """Drive towards a goal pose.
             Returns if the pose has been reached or the action should be cancelled.
             This method also calls the ROS executor to handle topics and requests.
@@ -101,7 +107,7 @@ class PathExecutor(Node):
         """
         return self.eucledian_distance(pose) <= self.MAX_POS_ERROR and abs(self.rotational_distance(pose)) <= self.MAX_ROT_ERROR
 
-    def calculate_controller_value(self, pose: Pose):
+    def calculate_controller_value(self, pose: Pose2D):
         """ Returns the direction, velocity and rotational velocity to reach the goal pose.
             Direction is the relative angle in radians.
             Velocity is a float between 0 and 1. Rotation is a float between -1 and 1.
@@ -139,7 +145,7 @@ class PathExecutor(Node):
         direction = to_polar(dx, dy)[0] - math.pi / 2 - self.pose.rot
         return direction, drot, dist
 
-    def eucledian_distance(self, pose: Pose):
+    def eucledian_distance(self, pose: Pose2D):
         """ Returns the eucledian distance (in meters) between the robots pose and the target pose.
         """
         return np.sqrt((pose.x - self.pose.x)**2 + (pose.y - self.pose.y)**2)
@@ -170,7 +176,9 @@ class PathExecutor(Node):
         """ Send the feedback message to the action client.
         """
         feedback_msg = Waypoints.Feedback()
-        feedback_msg.completed_pose = self.pose
+        feedback_msg.completed_pose.x = self.pose.x
+        feedback_msg.completed_pose.y = self.pose.y
+        feedback_msg.completed_pose.rot = self.pose.rot
         goal_handle.publish_feedback(feedback_msg)
 
     def send_enable_motors(self, value):
@@ -182,7 +190,13 @@ class PathExecutor(Node):
         self.enable_motors_client.call(request)  # synchronous call, blocks if service is unavailable
 
     def pose_callback(self, msg):
-        self.pose = msg
+        x, y, z, w = msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, \
+                     msg.pose.pose.orientation.w
+        euler = tf_transformations.euler_from_quaternion([x, y, z, w])
+        self.pose = Pose2D(msg.pose.pose.position.x, msg.pose.pose.position.y, euler[2])
+
+    def pose_msg_to_pose2d(self, pose_msg: PoseMsg):
+        return Pose2D(pose_msg.x, pose_msg.y, pose_msg.rot)
 
 
 def main(args=None):

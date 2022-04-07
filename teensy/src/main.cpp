@@ -185,11 +185,12 @@ void drivingLoop() {
       handleSerial();
     }
 
-    // For each motors:
-    // Check if the time has passed to flip the step pin. This time is determined by the 
-    // absolute spike periods. The spike period isn't defined for zero velocities, so we don't 
-    // flip the pin.
-    // Increase/decrease the motor steps on every pin flip. (So we actually log half steps)
+    /* For each motor:
+     * Check if the time has passed to flip the step pin. This time is determined by the 
+     * absolute spike periods. The spike period isn't defined for zero velocities, so we don't 
+     * flip the pin.
+     * Increase/decrease the motor steps on every pin flip. (So we actually log half steps)
+     */
     if (micros() - last_state_changes[0] >= abs_spike_periods[0] && wheel_velocities[0] != 0) {
       GPIO9_DR_TOGGLE ^= 1 << 5; // Teensy Pin 3
       last_state_changes[0] = micros();
@@ -219,7 +220,14 @@ void drivingLoop() {
     }
   }
 
+  // Send the steps not yet sent
+  sendSteps(steps);
+
   for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], HIGH); // When leaving, disable motors
+
+  // Send another step update with all zeros, so the node knows we have come to a halt
+  for (int i = 0; i < 3; i++) steps[i] = 0;
+  sendSteps(steps);
 }
 
 /**

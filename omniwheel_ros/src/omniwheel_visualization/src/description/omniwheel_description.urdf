@@ -2,7 +2,7 @@
     <link name="base_link">
         <visual>
           <geometry>
-            <cylinder length="0.1" radius="0.15"/>
+            <cylinder length="0.09" radius="0.175"/>
           </geometry>
           <material name="Black">
             <color rgba="0 0.0 0.0 1.0"/>
@@ -10,7 +10,7 @@
         </visual>
         <collision>
             <geometry>
-                <cylinder length="0.1" radius="0.15"/>
+                <cylinder length="0.09" radius="0.175"/>
             </geometry>
         </collision>
     </link>

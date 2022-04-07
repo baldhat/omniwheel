@@ -290,6 +290,8 @@ class TeensyNode(Node):
             dy = dist * np.sin(alpha + self.orientation + np.pi / 2)
             self.velocity = np.array([dx * 20, dy * 20])  # Same reason as omega
             self.position += np.array([dx, dy])
+        else:
+            self.velocity = np.array([0, 0])
 
 
 def main(args=None):
