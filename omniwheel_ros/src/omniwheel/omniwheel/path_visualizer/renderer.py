@@ -87,6 +87,7 @@ class Renderer:
         self.render_micro_steps(robot)
         self.render_max_wheel_velocity(robot)
         self.render_max_wheel_acceleration(robot)
+        self.render_current_velocities(robot)
 
     def render_motor_state(self, robot):
         self.draw_text('Motors Enabled' if robot.motors_enabled else 'Motors Disabled',
@@ -116,7 +117,7 @@ class Renderer:
     def render_current_velocities(self, robot):
         self.draw_text('Velocities: ' + str(round(robot.twist.x, 2)) + "x " + str(round(robot.twist.y, 2)) + "y "
                        '(' + str(round(robot.twist.rot * 180 / math.pi, 1)) + "°)",
-                       (255, 255, 255), (self.WIDTH * 0.81, self.HEIGHT * 0.05))
+                       (255, 255, 255), (self.WIDTH * 0.81, self.HEIGHT * 0.2))
 
     def draw_text(self, text, color, position):
         """

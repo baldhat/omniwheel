@@ -229,5 +229,5 @@ class EventHandler:
         Create and send a controller_value message.
         """
         msg = ControllerValue()
-        msg.direction, msg.max_velocity, msg.rotation = float(new_direction), float(velocity), float(rotation)
+        msg.direction, msg.velocity, msg.rotation = float(new_direction), float(velocity), float(rotation)
         self.controller_publisher.publish(msg)

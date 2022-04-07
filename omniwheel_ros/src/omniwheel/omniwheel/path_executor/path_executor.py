@@ -154,7 +154,7 @@ class PathExecutor(Node):
         """ Publishes the direction, velocity and rotational_velocity to the controller_value topic.
         """
         msg = ControllerValue()
-        msg.direction, msg.max_velocity, msg.rotation = float(direction), float(velocity), float(rotation)
+        msg.direction, msg.velocity, msg.rotation = float(direction), float(velocity), float(rotation)
         self.publisher_.publish(msg)
 
     def cancel_callback(self, _):
