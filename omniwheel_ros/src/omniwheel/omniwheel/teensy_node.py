@@ -54,7 +54,7 @@ class TeensyNode(Node):
 
         # Flag depicting the current status of the motor drivers
         self.motors_enabled = False
-        self.max_velocity = self.fetch_max_velocity()  # The maximum wheel velocity as retrieved from the teensy
+        self.max_velocity = self.fetch_velocity()  # The maximum wheel velocity as retrieved from the teensy
         self.acceleration = self.fetch_max_acceleration()  # The maximum wheel acceleration as retrieved from the teensy
         self.micro_steps = self.fetch_micro_steps()  # The maximum wheel velocity as retrieved by the teensy
         self.valid_micro_steps = [1, 2, 4, 8, 16, 32]  # Possible values for the micro step configuration
@@ -208,10 +208,10 @@ class TeensyNode(Node):
         """ Callback for the controller_value subscriber
         Writes the given values to the teensy serial connection.
         """
-        self.get_logger().debug('"%f %f %f"' % (msg.direction, msg.max_velocity, msg.rotation))
+        self.get_logger().debug('"%f %f %f"' % (msg.direction, msg.velocity, msg.rotation))
         if self.motors_enabled:
             commandString = '{I;' + str(round(msg.direction, 2)) + \
-                                ';' + str(round(msg.max_velocity, 2)) + \
+                                ';' + str(round(msg.velocity, 2)) + \
                                 ';' + str(round(msg.rotation, 2)) + ';}'
             self.ser.write(commandString.encode())
             self.last_twist_command = time.time()
@@ -225,7 +225,7 @@ class TeensyNode(Node):
         response.pose.x, response.pose.y, response.pose.rot = request.pose.x, request.pose.y, request.pose.rot
         return response
         
-    def fetch_max_velocity(self):
+    def fetch_velocity(self):
         """ Fetches the currently set max wheel velocity from the teensy. """
         self.ser.write(b'{s}')
         while not self.ser.inWaiting():
@@ -234,7 +234,7 @@ class TeensyNode(Node):
             value = float(self.ser.readline())
         except:
             self.ser.write(b'{E}')
-            value = self.fetch_max_velocity()
+            value = self.fetch_velocity()
         return value
         
     def fetch_max_acceleration(self):

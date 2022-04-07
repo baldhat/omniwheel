@@ -153,7 +153,7 @@ class PSController(Node):
         """
         msg = ControllerValue()
         msg.direction = float(new_direction)
-        msg.max_velocity = float(velocity)
+        msg.velocity = float(velocity)
         msg.rotation = float(rotation)
         self.publisher_.publish(msg)
         return msg
