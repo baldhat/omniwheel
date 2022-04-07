@@ -183,13 +183,13 @@ class TeensyNode(Node):
         """ Handles the velocity part of the DriveConfig service call.
         Check if the requested value is valid and if so, requests the change with the teensy.
         """
-        if request.max_velocity > 0:
-            vel = round(request.max_velocity, 2)
+        if request.velocity > 0:
+            vel = round(request.velocity, 2)
             command = ("{S;%f}" % vel).encode()
             self.get_logger().info(command)
             self.ser.write(command)
             self.max_velocity = vel
-        response.max_velocity = self.max_velocity
+        response.velocity = self.max_velocity
 
     def handle_acceleration_change(self, request, response):
         """ Handles the acceleration part of the DriveConfig service call.
