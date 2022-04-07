@@ -1,12 +1,10 @@
-
+import rclpy
+from rclpy.node import Node
 import pygame
 
 from omniwheel.path_visualizer.renderer import Renderer
 from omniwheel.path_visualizer.domain.robot import Robot
 from omniwheel.path_visualizer.event_handler import EventHandler
-
-import rclpy
-from rclpy.node import Node
 
 
 class PathVisualizer(Node):

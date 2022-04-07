@@ -1,10 +1,12 @@
 import rclpy
 import numpy as np
 from rclpy.node import Node
+import tf_transformations
 
-from omniwheel_interfaces.msg import ControllerValue, Pose, MotorState
+from omniwheel_interfaces.msg import ControllerValue, MotorState
 from omniwheel_interfaces.srv import EnableMotors, DriveConfig, SetPose
 from sensor_msgs.msg import BatteryState
+from nav_msgs.msg import Odometry
 
 from serial import Serial
 
@@ -19,7 +21,7 @@ class TeensyNode(Node):
     Subscribers:
         - controller_value
     Publishers:
-        - wheel_odometry_pose
+        - /wheel_odometry
         - motor_state
         - battery_state
     Service servers:
@@ -37,7 +39,7 @@ class TeensyNode(Node):
         self.config_service = self.create_service(DriveConfig, 'drive_config', self.drive_config_callback)
         self.position_service = self.create_service(SetPose, 'set_pose', self.set_pose_callback)
         # topic publishers
-        self.odometry = self.create_publisher(Pose, 'wheel_odometry_pose', 10)
+        self.odometry = self.create_publisher(Odometry, '/wheel_odometry', 10)
         self.enable_publisher = self.create_publisher(MotorState, 'motor_state', 10)
         self.battery_publisher = self.create_publisher(BatteryState, 'battery_state', 10)
         # timers
@@ -55,8 +57,10 @@ class TeensyNode(Node):
         self.velocity = self.fetch_max_velocity()  # The maximum wheel velocity as retrieved from the teensy
         self.acceleration = self.fetch_max_acceleration()  # The maximum wheel acceleration as retrieved from the teensy
         self.micro_steps = self.fetch_micro_steps()  # The maximum wheel velocity as retrieved by the teensy
-        self.position = np.zeros(2)
-        self.orientation = 0
+
+        self.position = np.zeros(2)  # Current position of the robot in the odom frame
+        self.orientation = 0  # Current orientation of the robot in the odom frame
+        self.velocity, self.omega = np.array([0, 0]), 0.0  # Current velocities of the robot (linear and angular)
 
         self.last_twist_command = time.time()  # timestamp of the last time a controller_value msg was received
         
@@ -71,9 +75,30 @@ class TeensyNode(Node):
         Also checks when the last time a controller_value msg was received. If none was received for 100ms, a soft stop
         is undertaken.
         """
-        message = Pose()
-        message.x, message.y, message.rot = float(self.position[0]), float(self.position[1]), float(self.orientation)
-        self.odometry.publish(message)
+        odom_msg = Odometry()
+        odom_msg.header.stamp = self.get_clock().now().to_msg()
+        odom_msg.header.frame_id = 'odom'
+        odom_msg.child_frame_id = 'base_link'
+
+        odom_msg.pose.pose.position.x = float(self.position[0])
+        odom_msg.pose.pose.position.y = float(self.position[1])
+        odom_msg.pose.pose.position.z = 0.0
+        quaternion = tf_transformations.quaternion_from_euler(0, 0, self.orientation)
+        odom_msg.pose.pose.orientation.x = quaternion[0]
+        odom_msg.pose.pose.orientation.y = quaternion[1]
+        odom_msg.pose.pose.orientation.z = quaternion[2]
+        odom_msg.pose.pose.orientation.w = quaternion[3]
+        odom_msg.pose.covariance = np.identity(6)
+
+        odom_msg.twist.twist.linear.x = self.velocity[0]
+        odom_msg.twist.twist.linear.y = self.velocity[1]
+        odom_msg.twist.twist.linear.z = 0
+        odom_msg.twist.twist.angular.x = 0
+        odom_msg.twist.twist.angular.y = 0
+        odom_msg.twist.twist.angular.z = self.omega
+        odom_msg.twist.covariance = np.identity(6)
+
+        self.odometry.publish(odom_msg)
         if time.time() - self.last_twist_command > 0.1 and self.motors_enabled:
             self.soft_stop()
 
@@ -244,13 +269,15 @@ class TeensyNode(Node):
         """
         dists = steps / (200 * self.micro_steps * self.MOTOR_REVS_PER_METER)
         va, vb, vc = dists[0], dists[1], dists[2]
-        omega = np.sum(dists) / (3 * self.RADIUS)
+        rotation = np.sum(dists) / (3 * self.RADIUS)
         alpha = - ((np.pi / 2 - np.arctan2((np.sqrt(3) * (va - vb)), (va + vb - 2*vc))) + np.pi)
         dist = np.sqrt(((va + vb - 2 * vc) / 3)**2 + (va - vb)**2 / 3)
-        self.orientation += omega
+        self.orientation += rotation
+        self.omega = rotation * 20  # We receive updates every 50ms, so the velocity is distance / 50ms
         if not np.isnan(alpha) and dist > 0:
             dx = dist * np.cos(alpha + self.orientation + np.pi / 2)
             dy = dist * np.sin(alpha + self.orientation + np.pi / 2)
+            self.velocity = np.array([dx * 20, dy * 20])  # We receive updates every 50ms, so the velocity is distance / 50ms
             self.position += np.array([dx, dy])
 
 

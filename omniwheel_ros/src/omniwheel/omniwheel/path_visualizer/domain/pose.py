@@ -1,6 +1,6 @@
 
 
-class Pose:
+class Pose2D:
     """
     Represents the 2D pose of a robot.
     """

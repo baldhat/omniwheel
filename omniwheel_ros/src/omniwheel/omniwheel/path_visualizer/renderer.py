@@ -5,7 +5,7 @@ import pygame
 import numpy as np
 import math
 
-from omniwheel.path_visualizer.domain.pose import Pose
+from omniwheel.path_visualizer.domain.pose import Pose2D
 
 
 class Renderer:
@@ -49,19 +49,19 @@ class Renderer:
         self.MAP_SCALE = 100
         self.display_offset = np.array([self.WIDTH / 2.2, self.HEIGHT / 2])
 
-    def draw_path(self, past_poses: [Pose]):
+    def draw_path(self, past_poses: [Pose2D]):
         """
         Draws a line between the past_poses in their order in the list.
         The first pose is always set as the origin.
         """
-        past_poses[0] = Pose(0, 0, 0)
+        past_poses[0] = Pose2D(0, 0, 0)
         for i, value in enumerate(past_poses):
             if i < len(past_poses) - 1:
                 start = self.pose_to_pixel(value)
                 end = self.pose_to_pixel(past_poses[i + 1])
                 pygame.draw.line(self.screen, self.PATH_COLOR, start, end)
 
-    def draw_waypoints(self, robot_pose: Pose, planned_poses: [Pose]):
+    def draw_waypoints(self, robot_pose: Pose2D, planned_poses: [Pose2D]):
         """
         Draws a line between the planned_poses in their order in the list. The line always starts at the robots
         current position.
@@ -71,7 +71,7 @@ class Renderer:
             end = self.pose_to_pixel(pose)
             pygame.draw.line(self.screen, self.WAYPOINT_COLOR, start, end)
 
-    def render_robot(self, pose: Pose):
+    def render_robot(self, pose: Pose2D):
         """ Draws the image representing the robot in the robots position."""
         self.blit_rotate_center(self.image, self.pose_to_pixel(pose), pose.rot)
 
@@ -113,6 +113,11 @@ class Renderer:
         self.draw_text('Max wheel acceleration: ' + str(round(robot.max_wheel_acceleration, 2)), (255, 255, 255),
                        (self.WIDTH * 0.81, self.HEIGHT * 0.17))
 
+    def render_current_velocities(self, robot):
+        self.draw_text('Velocities: ' + str(round(robot.twist.x, 2)) + "x " + str(round(robot.twist.y, 2)) + "y "
+                       '(' + str(round(robot.twist.rot * 180 / math.pi, 1)) + "°)",
+                       (255, 255, 255), (self.WIDTH * 0.81, self.HEIGHT * 0.05))
+
     def draw_text(self, text, color, position):
         """
         Renders the given text on the screen at the given position and with the given text color.
@@ -131,7 +136,7 @@ class Renderer:
         new_rect = rotated_image.get_rect(center=image.get_rect(center=center).center)
         self.screen.blit(rotated_image, new_rect)
 
-    def pose_to_pixel(self, pose: Pose):
+    def pose_to_pixel(self, pose: Pose2D):
         """ Converts a pose with real world coordinates to the corresponding pixel values"""
         return np.array([pose.x, -pose.y]) * self.MAP_SCALE + self.display_offset
 

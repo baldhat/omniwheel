@@ -1,11 +1,13 @@
-from omniwheel.path_visualizer.domain.pose import Pose
+from omniwheel.path_visualizer.domain.pose import Pose2D
+from omniwheel.path_visualizer.domain.twist import Twist2D
 
 from rclpy.action import ActionClient
 
-from omniwheel_interfaces.msg import Pose as PoseMsg, MotorState
+from omniwheel_interfaces.msg import MotorState
 from omniwheel_interfaces.srv import EnableMotors, SetPose, DriveConfig
 from omniwheel_interfaces.action import Waypoints
 from sensor_msgs.msg import BatteryState
+from nav_msgs.msg import Odometry
 
 
 class Robot:
@@ -13,7 +15,7 @@ class Robot:
     This class represents the omniwheel robot to the path_visualizer.
 
     Subscribers:
-        - wheel_odometry_pose
+        - wheel_odometry
         - motor_state
         - battery_state
     Service clients:
@@ -27,7 +29,7 @@ class Robot:
     def __init__(self, node):
         self.node = node
         # Topic subscriptions
-        node.create_subscription(PoseMsg, 'wheel_odometry_pose', self.pose_update, 10)
+        node.create_subscription(Odometry, 'wheel_odometry', self.pose_update, 10)
         node.create_subscription(MotorState, 'motor_state', self.motor_state_callback, 10)
         node.create_subscription(BatteryState, 'battery_state', self.battery_state_callback, 10)
         # Service clients
@@ -38,10 +40,11 @@ class Robot:
         self.waypoint_client = ActionClient(node, Waypoints, 'waypoints')
         self.waypoint_goal_handle = None  # Used for action cancellation
 
-        self.pose = Pose(0, 0, 0)  # The current pose of the robot, updated by omniwheel_pose messages
+        self.pose = Pose2D(0, 0, 0)  # The current pose of the robot, updated by omniwheel_pose messages
+        self.twist = Twist2D(0, 0, 0)  # The current angular and linear velocities of the robot
         self.motors_enabled = False  # Motor state, updated by motor_state messages
-        self.past_poses = [Pose(0, 0, 0)]  # List of previous poses of the robot, in order
-        self.planned_poses: [Pose] = []  # List of planned poses/waypoints, gets send to the Waypoints-Action-Server
+        self.past_poses = [Pose2D(0, 0, 0)]  # List of previous poses of the robot, in order
+        self.planned_poses: [Pose2D] = []  # List of planned poses/waypoints, gets send to the Waypoints-Action-Server
         self.battery_voltage = 0  # Current voltage of the robots batteries, updated by battery_state
 
         self.max_wheel_velocity = 0
@@ -54,14 +57,18 @@ class Robot:
         """
         Updated the current pose of the robot. The previous pose gets added to the past_poses.
         """
-        self.pose = Pose(x, y, rot)
+        self.pose = Pose2D(x, y, rot)
         self.past_poses.append(self.pose)
+
+    def set_twist(self, x, y, rot):
+        self.twist = Twist2D(x, y, rot)
 
     def pose_update(self, msg):
         """
         Callback for messages of the omniwheel_pose topic.
         """
-        self.set_pose(msg.x, msg.y, msg.rot)
+        self.set_pose(msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.orientation.z)
+        self.set_twist(msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.twist.angular.z)
 
     def switch_motor_enabled(self):
         """
@@ -92,7 +99,7 @@ class Robot:
         Add a new pose to the planned_poses. If the send-flag is set, immediately send them to the action server.
         """
         (x, y), orientation = pos, self.pose.rot
-        self.planned_poses.append(Pose(x, y, orientation))
+        self.planned_poses.append(Pose2D(x, y, orientation))
         if send:
             self.send_planned_waypoints()
 
