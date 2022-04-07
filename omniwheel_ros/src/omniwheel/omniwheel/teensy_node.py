@@ -90,12 +90,12 @@ class TeensyNode(Node):
         odom_msg.pose.pose.orientation.w = quaternion[3]
         odom_msg.pose.covariance = np.identity(6)
 
-        odom_msg.twist.twist.linear.x = self.velocity[0]
-        odom_msg.twist.twist.linear.y = self.velocity[1]
+        odom_msg.twist.twist.linear.x = float(self.velocity[0])
+        odom_msg.twist.twist.linear.y = float(self.velocity[1])
         odom_msg.twist.twist.linear.z = 0
         odom_msg.twist.twist.angular.x = 0
         odom_msg.twist.twist.angular.y = 0
-        odom_msg.twist.twist.angular.z = self.omega
+        odom_msg.twist.twist.angular.z = float(self.omega)
         odom_msg.twist.covariance = np.identity(6)
 
         self.odometry.publish(odom_msg)
