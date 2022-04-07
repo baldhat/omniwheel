@@ -176,8 +176,8 @@ class TeensyNode(Node):
             command = ("{M;%d}" % request.microsteps).encode()
             self.get_logger().info(command)
             self.ser.write(command)
-            self.microsteps = request.microsteps
-        response.microsteps = self.microsteps
+            self.micro_steps = request.microsteps
+        response.microsteps = self.micro_steps
 
     def handle_velocity_change(self, request, response):
         """ Handles the velocity part of the DriveConfig service call.
