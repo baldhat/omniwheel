@@ -3,6 +3,8 @@ from omniwheel.path_visualizer.domain.twist import Twist2D
 
 from rclpy.action import ActionClient
 
+import tf_transformations
+
 from omniwheel_interfaces.msg import MotorState
 from omniwheel_interfaces.srv import EnableMotors, SetPose, DriveConfig
 from omniwheel_interfaces.action import Waypoints
@@ -67,7 +69,10 @@ class Robot:
         """
         Callback for messages of the wheel_odometry topic.
         """
-        self.set_pose(msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.orientation.z)
+        x, y, z, w = msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, \
+                     msg.pose.pose.orientation.w
+        euler = tf_transformations.euler_from_quaternion(x, y, z, w)
+        self.set_pose(msg.pose.pose.position.x, msg.pose.pose.position.y, euler[2])
         self.set_twist(msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.twist.angular.z)
 
     def switch_motor_enabled(self):
@@ -181,7 +186,7 @@ class Robot:
 
     def handle_drive_config_response(self, future):
         response = future.result()
-        self.max_wheel_velocity = response.velocity
+        self.max_wheel_velocity = response.max_velocity
         self.max_wheel_acceleration = response.acceleration
         self.micro_steps = response.microsteps
 

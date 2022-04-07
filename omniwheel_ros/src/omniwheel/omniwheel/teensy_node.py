@@ -54,9 +54,10 @@ class TeensyNode(Node):
 
         # Flag depicting the current status of the motor drivers
         self.motors_enabled = False
-        self.velocity = self.fetch_max_velocity()  # The maximum wheel velocity as retrieved from the teensy
+        self.max_velocity = self.fetch_max_velocity()  # The maximum wheel velocity as retrieved from the teensy
         self.acceleration = self.fetch_max_acceleration()  # The maximum wheel acceleration as retrieved from the teensy
         self.micro_steps = self.fetch_micro_steps()  # The maximum wheel velocity as retrieved by the teensy
+        self.valid_micro_steps = [1, 2, 4, 8, 16, 32]  # Possible values for the micro step configuration
 
         self.position = np.zeros(2)  # Current position of the robot in the odom frame
         self.orientation = 0  # Current orientation of the robot in the odom frame
@@ -171,7 +172,7 @@ class TeensyNode(Node):
         """ Handles the micro_step part of the DriveConfig service call.
         Check if the requested value is valid and if so, requests the change with the teensy.
         """
-        if request.micro_steps > 0 and request.micro_steps in self.valid_microsteps:
+        if request.micro_steps > 0 and request.micro_steps in self.valid_micro_steps:
             command = ("{M;%d}" % request.micro_steps).encode()
             self.get_logger().info(command)
             self.ser.write(command)
@@ -182,13 +183,13 @@ class TeensyNode(Node):
         """ Handles the velocity part of the DriveConfig service call.
         Check if the requested value is valid and if so, requests the change with the teensy.
         """
-        if request.velocity > 0:
-            vel = round(request.velocity, 2)
+        if request.max_velocity > 0:
+            vel = round(request.max_velocity, 2)
             command = ("{S;%f}" % vel).encode()
             self.get_logger().info(command)
             self.ser.write(command)
-            self.velocity = vel
-        response.velocity = self.velocity
+            self.max_velocity = vel
+        response.max_velocity = self.max_velocity
 
     def handle_acceleration_change(self, request, response):
         """ Handles the acceleration part of the DriveConfig service call.
@@ -207,10 +208,10 @@ class TeensyNode(Node):
         """ Callback for the controller_value subscriber
         Writes the given values to the teensy serial connection.
         """
-        self.get_logger().debug('"%f %f %f"' % (msg.direction, msg.velocity, msg.rotation))
+        self.get_logger().debug('"%f %f %f"' % (msg.direction, msg.max_velocity, msg.rotation))
         if self.motors_enabled:
             commandString = '{I;' + str(round(msg.direction, 2)) + \
-                                ';' + str(round(msg.velocity, 2)) + \
+                                ';' + str(round(msg.max_velocity, 2)) + \
                                 ';' + str(round(msg.rotation, 2)) + ';}'
             self.ser.write(commandString.encode())
             self.last_twist_command = time.time()
@@ -287,7 +288,7 @@ class TeensyNode(Node):
         if not np.isnan(alpha) and dist > 0:
             dx = dist * np.cos(alpha + self.orientation + np.pi / 2)
             dy = dist * np.sin(alpha + self.orientation + np.pi / 2)
-            self.velocity = np.array([dx * 20, dy * 20])  # We receive updates every 50ms, so the velocity is distance / 50ms
+            self.velocity = np.array([dx * 20, dy * 20])  # Same reason as omega
             self.position += np.array([dx, dy])
 
 
