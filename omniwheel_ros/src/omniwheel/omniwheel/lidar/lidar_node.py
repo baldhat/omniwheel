@@ -68,9 +68,10 @@ class LidarNode(Node):
 
     def run(self):
         while True:
-            rclpy.spin_once(self, timeout_sec=0.05)
+            rclpy.spin_once(self, timeout_sec=0.0)
             points = self.read_points()
             self.publish_points(points)
+            rclpy.spin_once(self, timeout_sec=0.05)
 
 
 def main(args=None):
