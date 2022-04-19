@@ -43,12 +43,12 @@ class LidarNode(Node):
         points = self.pc.calculate(depth_frame)
         points = np.asarray(points.get_vertices(2), dtype='float32').reshape((320, 240, 3))
         depth = np.asanyarray(depth_frame.get_data()).reshape((320, 240))
-        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth, alpha=0.015), cv2.COLORMAP_HOT)
+        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth, alpha=0.015), cv2.COLORMAP_DEEPGREEN)
         return np.concatenate((points, depth_colormap), 2)
 
     def publish_points(self, points):
         msg = PointCloud2()
-        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.stamp = (self.get_clock().now() + 1).to_msg()
         msg.header.frame_id = 'lidar_link'
         msg.width = 320
         msg.height = 240
