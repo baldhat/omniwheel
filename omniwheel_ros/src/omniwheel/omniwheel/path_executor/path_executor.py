@@ -43,6 +43,8 @@ class PathExecutor(Node):
         self.enable_motors_client = self.create_client(EnableMotors, 'enable_motors')
         self.pose_subscription = self.create_subscription(Odometry, '/wheel_odometry', self.pose_callback, 10)
 
+        self.get_logger().info(str(self.get_clock().now().to_msg()))
+
         # The current pose of the robot. This gets updated in self.pose_callback
         self.pose = Pose2D(0, 0, 0)
 

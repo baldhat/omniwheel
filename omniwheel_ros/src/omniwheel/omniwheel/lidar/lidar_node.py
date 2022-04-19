@@ -19,6 +19,8 @@ class LidarNode(Node):
         config = rs.config()
         config.enable_stream(rs.stream.depth, 320, 240, rs.format.z16, 30)
 
+        self.get_logger().info(str(self.get_clock().now().to_msg()))
+
         self.pipeline.start(config)
 
         self.pc = rs.pointcloud()
@@ -66,7 +68,7 @@ class LidarNode(Node):
 
     def run(self):
         while True:
-            rclpy.spin_once(self, timeout_sec=0.0)
+            rclpy.spin_once(self, timeout_sec=0.05)
             points = self.read_points()
             self.publish_points(points)
 
