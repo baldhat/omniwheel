@@ -66,7 +66,7 @@ class LidarNode(Node):
         msg.fields = [PointField(
             name=n, offset=i * itemsize, datatype=ros_dtype, count=1)
             for i, n in enumerate('xyz')]
-        #msg.data = points.tobytes()
+        msg.data = points.tobytes()
         msg.is_dense = False
         msg.is_bigendian = False
         msg.point_step = 3 * itemsize
