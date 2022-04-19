@@ -9,8 +9,8 @@ from rclpy.time import Time
 
 from sensor_msgs.msg import PointCloud2, PointField
 
-WIDTH = 1024
-HEIGHT = 768
+WIDTH = 320
+HEIGHT = 240
 
 class LidarNode(Node):
 
