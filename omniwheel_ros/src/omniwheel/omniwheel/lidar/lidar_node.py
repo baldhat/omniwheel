@@ -18,7 +18,7 @@ class LidarNode(Node):
 
         self.pipeline = rs.pipeline()
         config = rs.config()
-        config.enable_stream(rs.stream.depth, 320, 240, rs.format.z16, 30)
+        config.enable_stream(rs.stream.depth, 1024, 768, rs.format.z16, 30)
 
         self.get_logger().info(str(self.get_clock().now().to_msg()))
 
