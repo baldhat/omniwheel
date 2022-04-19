@@ -46,6 +46,7 @@ class LidarNode(Node):
         # depth = np.asanyarray(depth_frame.get_data()).reshape((320, 240))
         # depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth, alpha=0.015), cv2.COLORMAP_HOT)
         # return np.concatenate((points, depth_colormap), 2)
+        self.get_logger().info("Read image")
         return points
 
     def publish_points(self, points):
@@ -68,14 +69,14 @@ class LidarNode(Node):
         # msg.row_step = 6 * itemsize * 320
         msg.point_step = 3 * itemsize
         msg.row_step = 3 * itemsize * 848
-
         self.publisher_.publish(msg)
+        self.get_logger().info("pUBLISHED image")
 
     def run(self):
         while True:
             rclpy.spin_once(self, timeout_sec=0.0)
             points = self.read_points()
-            #self.publish_points(points)
+            self.publish_points(points)
 
 
 def main(args=None):
