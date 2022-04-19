@@ -20,6 +20,7 @@ class LidarNode(Node):
         config.enable_stream(rs.stream.depth, 320, 240, rs.format.z16, 30)
 
         self.pipeline.start(config)
+        self.get_logger().info(str(self.get_clock().now().to_msg()))
 
         self.pc = rs.pointcloud()
         self.decimate = rs.decimation_filter()
