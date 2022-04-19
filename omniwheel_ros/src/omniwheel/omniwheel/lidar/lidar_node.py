@@ -72,7 +72,7 @@ class LidarNode(Node):
         msg.point_step = 3 * itemsize
         msg.row_step = 3 * itemsize * WIDTH
 
-        self.publisher_.publish(msg)
+        #self.publisher_.publish(msg)
 
     def run(self):
         while True:
@@ -80,7 +80,7 @@ class LidarNode(Node):
             start = datetime.now()
             points = self.read_points()
             print(datetime.now() - start)
-            #self.publish_points(points)
+            self.publish_points(points)
 
 
 def main(args=None):
