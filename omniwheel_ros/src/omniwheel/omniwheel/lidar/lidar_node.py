@@ -63,9 +63,9 @@ class LidarNode(Node):
         ros_dtype = PointField.FLOAT32
         dtype = np.float32
         itemsize = np.dtype(dtype).itemsize
-        # msg.fields = [PointField(
-        #     name=n, offset=i * itemsize, datatype=ros_dtype, count=1)
-        #     for i, n in enumerate('xyz')]
+        msg.fields = [PointField(
+            name=n, offset=i * itemsize, datatype=ros_dtype, count=1)
+            for i, n in enumerate('xyz')]
         #msg.data = points.tobytes()
         msg.is_dense = False
         msg.is_bigendian = False
