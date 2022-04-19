@@ -63,10 +63,10 @@ class LidarNode(Node):
         ros_dtype = PointField.FLOAT32
         dtype = np.float32
         itemsize = np.dtype(dtype).itemsize
-        msg.fields = [PointField(
-            name=n, offset=i * itemsize, datatype=ros_dtype, count=1)
-            for i, n in enumerate('xyz')]
-        msg.data = points.tobytes()
+        # msg.fields = [PointField(
+        #     name=n, offset=i * itemsize, datatype=ros_dtype, count=1)
+        #     for i, n in enumerate('xyz')]
+        #msg.data = points.tobytes()
         msg.is_dense = False
         msg.is_bigendian = False
         msg.point_step = 3 * itemsize
@@ -79,8 +79,8 @@ class LidarNode(Node):
             #rclpy.spin_once(self, timeout_sec=0.0)
             start = datetime.now()
             points = self.read_points()
-            print(datetime.now() - start)
             self.publish_points(points)
+            print(datetime.now() - start)
 
 
 def main(args=None):
