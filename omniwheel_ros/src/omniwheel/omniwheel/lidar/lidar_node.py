@@ -9,6 +9,8 @@ from rclpy.time import Time
 
 from sensor_msgs.msg import PointCloud2, PointField
 
+WIDTH = 1024
+HEIGHT = 767
 
 class LidarNode(Node):
 
@@ -18,7 +20,7 @@ class LidarNode(Node):
 
         self.pipeline = rs.pipeline()
         config = rs.config()
-        config.enable_stream(rs.stream.depth, 1024, 768, rs.format.z16, 30)
+        config.enable_stream(rs.stream.depth, WIDTH, HEIGHT, rs.format.z16, 30)
 
         self.get_logger().info(str(self.get_clock().now().to_msg()))
 
@@ -42,7 +44,7 @@ class LidarNode(Node):
             depth_frame = f.process(depth_frame)
 
         points = self.pc.calculate(depth_frame)
-        points = np.asarray(points.get_vertices(2), dtype='float32').reshape((320, 240, 3))
+        points = np.asarray(points.get_vertices(2), dtype='float32').reshape((WIDTH, HEIGHT, 3))
         # depth = np.asanyarray(depth_frame.get_data()).reshape((320, 240))
         # depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth, alpha=0.015), cv2.COLORMAP_DEEPGREEN)
         # return np.concatenate((points, depth_colormap), 2)
@@ -54,8 +56,8 @@ class LidarNode(Node):
         time = Time(nanoseconds=time.nanoseconds + 40 * 1000000000)
         msg.header.stamp = time.to_msg()
         msg.header.frame_id = 'lidar_link'
-        msg.width = 320
-        msg.height = 240
+        msg.width = WIDTH
+        msg.height = HEIGHT
         ros_dtype = PointField.FLOAT32
         dtype = np.float32
         itemsize = np.dtype(dtype).itemsize
@@ -66,7 +68,7 @@ class LidarNode(Node):
         msg.is_dense = False
         msg.is_bigendian = False
         msg.point_step = 3 * itemsize
-        msg.row_step = 3 * itemsize * 320
+        msg.row_step = 3 * itemsize * WIDTH
 
         self.publisher_.publish(msg)
 
