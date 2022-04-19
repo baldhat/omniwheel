@@ -2,6 +2,7 @@
 import pyrealsense2 as rs
 import numpy as np
 import cv2
+from datetime import datetime
 
 import rclpy
 from rclpy.node import Node
@@ -9,8 +10,9 @@ from rclpy.time import Time
 
 from sensor_msgs.msg import PointCloud2, PointField
 
-WIDTH = 320
-HEIGHT = 240
+WIDTH = 848
+HEIGHT = 480
+
 
 class LidarNode(Node):
 
@@ -53,7 +55,7 @@ class LidarNode(Node):
     def publish_points(self, points):
         msg = PointCloud2()
         time = self.get_clock().now()
-        time = Time(nanoseconds=time.nanoseconds + 40 * 1000000000)
+        # time = Time(nanoseconds=time.nanoseconds + 40 * 1000000000)
         msg.header.stamp = time.to_msg()
         msg.header.frame_id = 'lidar_link'
         msg.width = WIDTH
@@ -74,9 +76,11 @@ class LidarNode(Node):
 
     def run(self):
         while True:
-            rclpy.spin_once(self, timeout_sec=0.0)
+            #rclpy.spin_once(self, timeout_sec=0.0)
+            start = datetime.now()
             points = self.read_points()
-            self.publish_points(points)
+            print(datetime.now() - start)
+            #self.publish_points(points)
 
 
 def main(args=None):
