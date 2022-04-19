@@ -36,7 +36,7 @@ class LidarNode(Node):
     def read_points(self):
         success, frames = self.pipeline.try_wait_for_frames()
         depth_frame = frames.get_depth_frame().as_video_frame()
-        depth_frame = self.decimate.process(depth_frame)
+        # depth_frame = self.decimate.process(depth_frame)
 
         # for f in self.filters:
         #     depth_frame = f.process(depth_frame)
@@ -73,7 +73,7 @@ class LidarNode(Node):
 
     def run(self):
         while True:
-            rclpy.spin_once(self, timeout_sec=0.05)
+            rclpy.spin_once(self, timeout_sec=0.0)
             points = self.read_points()
             self.publish_points(points)
 
