@@ -301,7 +301,7 @@ def main(args=None):
     
     try:
         while rclpy.ok():
-            rclpy.spin_once(controller_subscriber, timeout_sec=0.02)
+            rclpy.spin_once(controller_subscriber, timeout_sec=0.05)
             controller_subscriber.checkSerial()
     except KeyboardInterrupt:
         print('Bye')
