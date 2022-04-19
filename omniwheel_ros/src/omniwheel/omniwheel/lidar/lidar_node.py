@@ -13,7 +13,7 @@ class LidarNode(Node):
 
     def __init__(self):
         super().__init__('lidar_publisher')
-        self.publisher_ = self.create_publisher(PointCloud2, 'lidar/points', 10)
+        self.publisher_ = self.create_publisher(PointCloud2, 'lidar/points', 1)
 
         self.pipeline = rs.pipeline()
         config = rs.config()
