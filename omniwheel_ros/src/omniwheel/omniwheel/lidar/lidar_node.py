@@ -48,7 +48,7 @@ class LidarNode(Node):
 
     def publish_points(self, points):
         msg = PointCloud2()
-        msg.header.stamp = (self.get_clock().now() + 1).to_msg()
+        msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = 'lidar_link'
         msg.width = 320
         msg.height = 240
