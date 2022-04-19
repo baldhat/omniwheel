@@ -17,7 +17,7 @@ class LidarNode(Node):
 
         self.pipeline = rs.pipeline()
         config = rs.config()
-        config.enable_stream(rs.stream.depth, 320, 240, rs.format.z16, 30)
+        config.enable_stream(rs.stream.depth, 848, 480, rs.format.z16, 5)
 
         self.get_logger().info(str(self.get_clock().now().to_msg()))
 
@@ -42,7 +42,7 @@ class LidarNode(Node):
         #     depth_frame = f.process(depth_frame)
 
         points = self.pc.calculate(depth_frame)
-        points = np.asarray(points.get_vertices(2), dtype='float32').reshape((320, 240, 3))
+        points = np.asarray(points.get_vertices(2), dtype='float32').reshape((848, 480, 3))
         # depth = np.asanyarray(depth_frame.get_data()).reshape((320, 240))
         # depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth, alpha=0.015), cv2.COLORMAP_HOT)
         # return np.concatenate((points, depth_colormap), 2)
@@ -52,8 +52,8 @@ class LidarNode(Node):
         msg = PointCloud2()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = 'lidar_link'
-        msg.width = 320
-        msg.height = 240
+        msg.width = 848
+        msg.height = 480
         ros_dtype = PointField.FLOAT32
         dtype = np.float32
         itemsize = np.dtype(dtype).itemsize
@@ -67,7 +67,7 @@ class LidarNode(Node):
         # msg.point_step = 6 * itemsize
         # msg.row_step = 6 * itemsize * 320
         msg.point_step = 3 * itemsize
-        msg.row_step = 3 * itemsize * 320
+        msg.row_step = 3 * itemsize * 848
 
         self.publisher_.publish(msg)
 
