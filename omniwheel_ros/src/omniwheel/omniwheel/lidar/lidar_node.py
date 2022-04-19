@@ -22,6 +22,7 @@ class LidarNode(Node):
         self.get_logger().info(str(self.get_clock().now().to_msg()))
 
         self.pipeline.start(config)
+        self.get_logger().info(str(self.get_clock().now().to_msg()))
 
         self.pc = rs.pointcloud()
         self.decimate = rs.decimation_filter()
