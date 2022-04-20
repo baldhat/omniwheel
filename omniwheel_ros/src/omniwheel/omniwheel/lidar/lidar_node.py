@@ -10,8 +10,10 @@ from rclpy.time import Time
 
 from sensor_msgs.msg import PointCloud2, PointField
 
-WIDTH = 1024
-HEIGHT = 768
+# WIDTH = 1024
+# HEIGHT = 768
+WIDTH = 320
+HEIGHT = 240
 
 # WIDTH = 848
 # HEIGHT = 480
@@ -49,41 +51,37 @@ class LidarNode(Node):
             depth_frame = f.process(depth_frame)
 
         points = self.pc.calculate(depth_frame)
-        points = np.asarray(points.get_vertices(2), dtype='float32').reshape((WIDTH, HEIGHT, 3))
-        depth = np.asanyarray(depth_frame.get_data()).reshape((320, 240))
-        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth, alpha=0.015), cv2.COLORMAP_DEEPGREEN)
-        return np.concatenate((points, depth_colormap), 2)
+        points = np.asarray(points.get_vertices(2), dtype='float32')
+        points = points[(points[:, 0] > 0) | (points[:, 1] > 0) | ((points[:, 2] > 0))]
         return points
 
     def publish_points(self, points):
         msg = PointCloud2()
-        time = self.get_clock().now()
-        time = Time(nanoseconds=time.nanoseconds + 40 * 1000000000)
-        msg.header.stamp = time.to_msg()
         msg.header.frame_id = 'lidar_link'
-        msg.width = WIDTH
-        msg.height = HEIGHT
+        msg.width = points.shape[0]
+        msg.height = 1
         ros_dtype = PointField.FLOAT32
         dtype = np.float32
         itemsize = np.dtype(dtype).itemsize
         msg.fields = [PointField(
             name=n, offset=i * itemsize, datatype=ros_dtype, count=1)
             for i, n in enumerate('xyz')]
+        start = datetime.now()
         msg.data = points.tobytes()
+        print(datetime.now() - start)
         msg.is_dense = False
         msg.is_bigendian = False
         msg.point_step = 3 * itemsize
-        msg.row_step = 3 * itemsize * WIDTH
+        msg.row_step = 3 * itemsize * msg.width
+        msg.header.stamp = self.get_clock().now().to_msg()
 
-        #self.publisher_.publish(msg)
+        self.publisher_.publish(msg)
 
     def run(self):
         while True:
-            #rclpy.spin_once(self, timeout_sec=0.0)
-            start = datetime.now()
+            rclpy.spin_once(self, timeout_sec=0.0)
             points = self.read_points()
             self.publish_points(points)
-            print(datetime.now() - start)
 
 
 def main(args=None):
