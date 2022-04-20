@@ -10,10 +10,10 @@ from rclpy.time import Time
 
 from sensor_msgs.msg import PointCloud2, PointField
 
-# WIDTH = 1024
-# HEIGHT = 768
-WIDTH = 320
-HEIGHT = 240
+WIDTH = 1024
+HEIGHT = 768
+# WIDTH = 320
+# HEIGHT = 240
 
 # WIDTH = 848
 # HEIGHT = 480
@@ -52,7 +52,8 @@ class LidarNode(Node):
 
         points = self.pc.calculate(depth_frame)
         points = np.asarray(points.get_vertices(2), dtype='float32')
-        points = points[(points[:, 0] > 0) | (points[:, 1] > 0) | ((points[:, 2] > 0))]
+        points = points[(points[:, 0] > 0) | (points[:, 1] > 0) | (points[:, 2] > 0)]
+
         return points
 
     def publish_points(self, points):
@@ -67,7 +68,7 @@ class LidarNode(Node):
             name=n, offset=i * itemsize, datatype=ros_dtype, count=1)
             for i, n in enumerate('xyz')]
         start = datetime.now()
-        msg.data = points.tobytes()
+        msg._data = points.tobytes()
         print(datetime.now() - start)
         msg.is_dense = False
         msg.is_bigendian = False
