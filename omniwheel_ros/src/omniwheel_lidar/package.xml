@@ -14,6 +14,7 @@
   
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
   <build_depend>pcl_ros</build_depend>
   <build_depend>pcl_converions</build_depend>
   <build_depend>libpcl-all-dev</build_depend>

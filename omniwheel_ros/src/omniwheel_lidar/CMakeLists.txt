@@ -19,6 +19,7 @@ find_package(rcutils REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system) 
+find_package(std_srvs REQUIRED)
 
 add_executable(lidar_node src/lidar_node.cpp)
 
@@ -32,7 +33,7 @@ ament_target_dependencies(lidar_node
 	"rcutils"
 	"sensor_msgs"
 	"tf2_geometry_msgs"
-	
+ 	"std_srvs"
 )
 
 target_link_libraries(lidar_node
