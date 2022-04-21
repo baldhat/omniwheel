@@ -19,7 +19,7 @@ void enable_lidar(const std::shared_ptr<std_srvs::srv::SetBool::Request> request
                   std::shared_ptr<std_srvs::srv::SetBool::Response> response) {
   enabled = request->data;
   response->success = true;
-  response->message = enabled ? "Enabled lidar" : "Disabled lidar";
+  response->message = enabled ? "Enabled" : "Disabled";
 }
 
 class LidarNode : public rclcpp::Node
