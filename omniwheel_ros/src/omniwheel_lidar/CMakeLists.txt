@@ -5,11 +5,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# find dependencies
 find_package(ament_cmake REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
 
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
@@ -25,16 +21,12 @@ find_package(Boost REQUIRED COMPONENTS system)
 
 add_executable(lidar_node src/lidar_node.cpp)
 
-include_directories(${PCL_INCLUDE_DIRS})
-link_directories(${PCL_LIBRARY_DIRS})
-add_definitions(${PCL_DEFINITIONS})
-
 target_link_libraries(lidar_node ${realsense2_LIBRARY} ${PCL_LIBRARIES})
 ament_target_dependencies(lidar_node 
 	"rclcpp" 
 	"std_msgs"
 	"geometry_msgs"
-	pcl_conversions
+	"pcl_conversions"
 	"rcl_interfaces"
 	"rcutils"
 	"sensor_msgs"

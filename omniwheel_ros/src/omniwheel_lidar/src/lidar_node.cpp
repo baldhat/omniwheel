@@ -38,7 +38,7 @@ class LidarNode : public rclcpp::Node
 
       auto points = pc.calculate(depth);
       auto vertices = points.get_vertices();
-      for (int i = 0; i < points.size(); i++) {
+      for (size_t i = 0; i < points.size(); i++) {
         pcl::PointXYZ pt = pcl::PointXYZ();
 	pt.x = vertices[i].x;
 	pt.y = vertices[i].y;
