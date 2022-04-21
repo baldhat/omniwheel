@@ -36,7 +36,6 @@ class LidarNode(Node):
         self.pc = rs.pointcloud()
         self.decimate = rs.decimation_filter()
         self.decimate.set_option(rs.option.filter_magnitude, 1)
-        self.colorizer = rs.colorizer()
         self.filters = [rs.disparity_transform(),
                    rs.spatial_filter(),
                    rs.temporal_filter(),
