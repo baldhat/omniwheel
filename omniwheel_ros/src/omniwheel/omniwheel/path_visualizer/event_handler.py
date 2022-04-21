@@ -72,6 +72,7 @@ class EventHandler:
         self.key_event_handlers.append((pygame.KEYDOWN, pygame.K_c, self.robot.reset_position))
         self.key_event_handlers.append((pygame.KEYDOWN, pygame.K_0, self.renderer.reset_camera))
         self.key_event_handlers.append((pygame.KEYDOWN, pygame.K_ESCAPE, self.robot.cancel_waypoint_mission))
+        self.key_event_handlers.append((pygame.KEYDOWN, pygame.K_l, self.robot.switch_lidar_enabled))
 
         self.key_event_handlers.append((pygame.KEYUP, pygame.K_q, lambda: self.set_rot(0)))
         self.key_event_handlers.append((pygame.KEYUP, pygame.K_e, lambda: self.set_rot(0)))

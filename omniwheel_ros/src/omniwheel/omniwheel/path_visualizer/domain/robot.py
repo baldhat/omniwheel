@@ -10,6 +10,7 @@ from omniwheel_interfaces.srv import EnableMotors, SetPose, DriveConfig
 from omniwheel_interfaces.action import Waypoints
 from sensor_msgs.msg import BatteryState
 from nav_msgs.msg import Odometry
+from std_srvs.srv import SetBool
 
 
 class Robot:
@@ -17,13 +18,14 @@ class Robot:
     This class represents the omniwheel robot to the path_visualizer.
 
     Subscribers:
-        - wheel_odometry
-        - motor_state
-        - battery_state
+        - wheel_odometry (Listen to the current pose of the robot)
+        - motor_state (Listen to the current enabled-state of the motors)
+        - battery_state (Listen to the current battery level)
     Service clients:
-        - enable_motors
-        - set_pose
-        - drive_config
+        - enable_motors (enable or disable the motors of the robot)
+        - set_pose (set the pose of the robot [position and orientation])
+        - drive_config (Set and retrieve acceleration, velocity and micro step values)
+        - enable_lidar (enable or disable the lidar)
     Action servers:
         - waypoints
     """
@@ -38,6 +40,7 @@ class Robot:
         self.enable_motors_client = node.create_client(EnableMotors, 'enable_motors')
         self.position_client = node.create_client(SetPose, 'set_pose')
         self.config_client = node.create_client(DriveConfig, 'drive_config')
+        self.enable_lidar_client = node.create_client(SetBool, 'enable_lidar')
         # Action client
         self.waypoint_client = ActionClient(node, Waypoints, 'waypoints')
         self.waypoint_goal_handle = None  # Used for action cancellation
@@ -45,6 +48,9 @@ class Robot:
         self.pose = Pose2D(0, 0, 0)  # The current pose of the robot, updated by wheel_odometry messages
         self.twist = Twist2D(0, 0, 0)  # The current angular and linear velocities of the robot
         self.motors_enabled = False  # Motor state, updated by motor_state messages
+        # Local representation of the lidar state. At startup this can be wrong, but will be correct after the first
+        # enable_lidar service call:
+        self.lidar_enabled = False
         self.past_poses = [Pose2D(0, 0, 0)]  # List of previous poses of the robot, in order
         self.planned_poses: [Pose2D] = []  # List of planned poses/waypoints, gets send to the Waypoints-Action-Server
         self.battery_voltage = 0  # Current voltage of the robots batteries, updated by battery_state
@@ -84,14 +90,34 @@ class Robot:
         enable_motors_future = self.enable_motors_client.call_async(request)
         enable_motors_future.add_done_callback(self.handle_enable_motors_response)
 
+    def switch_lidar_enabled(self):
+        """
+        Change the enabled status of the robots lidar. If enabled the lidar publishes the PointCloud2 messages
+        on the topic lidar/points.
+        """
+        self.set_lidar_enabled(not self.lidar_enabled)
+
+    def set_lidar_enabled(self, enable):
+        """
+        Set the enabled status of the robots' lidar. If enabled the lidar publishes the PointCloud2 messages
+        on the topic lidar/points.
+        """
+        request = SetBool.Request()
+        request.data = enable
+        enable_motors_future = self.enable_lidar_client.call_async(request)
+        enable_motors_future.add_done_callback(self.handle_enable_lidar_response)
+
     def get_drive_config_values(self):
+        """
+        Sends an empty request to the drive config service to retrieve the currently set values.
+        """
         request = DriveConfig.Request()
         drive_config_future = self.config_client.call_async(request)
         drive_config_future.add_done_callback(self.handle_drive_config_response)
 
     def reset_position(self):
         """
-        Request to reset the position of the robot to (0, 0) and the orientation to (0). This does NOT drive the
+        Request to reset the position of the robot to (0, 0) and the orientation to (0). This does NOT move the
         robot, but rather resets the global coordinate system to have its center on the current robot position.
         """
         request = SetPose.Request()
@@ -205,6 +231,17 @@ class Robot:
             self.motors_enabled = response.enabled
         except Exception as e:
             self.node.get_logger().info('Enable Motors Service call failed %r' % (e,))
+
+    def handle_enable_lidar_response(self, future):
+        """
+        Callback for the enable_lidar service response. Sets the corresponding variable to the return value
+        """
+        try:
+            response = future.result()
+            self.lidar_enabled = response.message.startswith('Enabled')
+            self.node.get_logger().info(response.message)
+        except Exception as e:
+            self.node.get_logger().info('Enable_lidar service call failed %r' % (e,))
 
     def handle_set_position_response(self, future):
         """
