@@ -37,48 +37,62 @@ class LidarNode : public rclcpp::Node
       // supported resolutions L515: 320x240, 640x480, 1024x768
       rs2::config cfg;
       cfg.enable_stream(RS2_STREAM_DEPTH, 320, 240, RS2_FORMAT_Z16, 30);
+      //cfg.enable_stream(RS2_STREAM_INFRARED, 320, 240, RS2_FORMAT_Z16, 30);
       p.start(cfg);
 
       RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Ready...");
     }
+    const auto CAPACITY = 5; // allow max latency of 5 frames
+    rs2::frame_queue queue(CAPACITY);
+
     void run() {
+      std::thread t([&]() {
+        while (true){
+            rs2::depth_frame frame;
+            if (queue.poll_for_frame(&frame)) {
+                frame.get_data();
+                cloud_.points.clear();
+                auto points = pc.calculate(depth);
+                auto vertices = points.get_vertices();
+                for (size_t i = 0; i < points.size(); i++) {
+                    pcl::PointXYZI pt = pcl::PointXYZI();
+                    if (vertices[i].x != 0 || vertices[i].y != 0 || vertices[i].z != 0) {
+                        pt.x = vertices[i].x;
+                        pt.y = vertices[i].y;
+                        pt.z = vertices[i].z;
+                        pt.i = 1.0;
+                        cloud_.points.push_back(pt);
+                    }
+                }
+                pcl::PCLPointCloud2 tmp_cloud;
+                pcl::toPCLPointCloud2(cloud_, tmp_cloud);
+                pcl_conversions::fromPCL(tmp_cloud, pc2_msg_);
+
+                pc2_msg_.header.stamp = now();
+                pc2_msg_.header.frame_id = "lidar_link";
+
+                pub_->publish(pc2_msg_);
+
+                std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+                std::cout << "FPS = " << 1000000.0 / std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << std::endl;
+            }
+        }
+      });
+      t.detach();
+
       while (true) {
         if (enabled) {
           std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
           rs2::frameset frames = p.wait_for_frames();
 
-          rs2::depth_frame depth = frames.get_depth_frame();
-
-          cloud_.points.clear();
-          auto points = pc.calculate(depth);
-          auto vertices = points.get_vertices();
-          for (size_t i = 0; i < points.size(); i++) {
-            pcl::PointXYZ pt = pcl::PointXYZ();
-            if (vertices[i].x != 0 || vertices[i].y != 0 || vertices[i].z != 0) {
-              pt.x = vertices[i].x;
-              pt.y = vertices[i].y;
-              pt.z = vertices[i].z;
-              cloud_.points.push_back(pt);
-            }
-          }
-          pcl::PCLPointCloud2 tmp_cloud;
-          pcl::toPCLPointCloud2(cloud_, tmp_cloud);
-          pcl_conversions::fromPCL(tmp_cloud, pc2_msg_);
-
-          pc2_msg_.header.stamp = now();
-          pc2_msg_.header.frame_id = "lidar_link";
-
-          pub_->publish(pc2_msg_);
-
-          std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-          std::cout << "FPS = " << 1000000.0 / std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << std::endl; 
+          queue.enqueue(frames.get_depth_frame());
         }
         rclcpp::spin_some(this->get_node_base_interface());
       }
     }
 
   private:
-    pcl::PointCloud<pcl::PointXYZ> cloud_;
+    pcl::PointCloud<pcl::PointXYZI> cloud_;
     sensor_msgs::msg::PointCloud2 pc2_msg_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_;
     rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr enable_service;
