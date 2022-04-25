@@ -37,7 +37,7 @@ class LidarNode : public rclcpp::Node
       // supported resolutions L515: 320x240, 640x480, 1024x768
       rs2::config cfg;
       cfg.enable_stream(RS2_STREAM_DEPTH, 320, 240, RS2_FORMAT_Z16, 30);
-      cfg.enable_stream(RS2_STREAM_INFRARED, 320, 240, RS2_FORMAT_Z16, 30);
+      //cfg.enable_stream(RS2_STREAM_INFRARED, 320, 240, RS2_FORMAT_Z16, 30);
       p.start(cfg);
 
       RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Ready...");
