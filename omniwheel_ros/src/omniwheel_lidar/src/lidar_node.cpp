@@ -44,10 +44,10 @@ class LidarNode : public rclcpp::Node
 
         RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Ready...");
     }
-    rs2::depth_frame frame;
     void run() {
       std::thread t([&]() {
         while (true){
+            rs2::depth_frame frame;
             if (queue.poll_for_frame(&frame)) {
                 auto depth = frame.get_data();
                 cloud_.points.clear();
