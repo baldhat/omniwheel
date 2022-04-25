@@ -50,7 +50,7 @@ class LidarNode : public rclcpp::Node
         while (true){
             rs2::depth_frame frame;
             if (queue.poll_for_frame(&frame)) {
-                frame.get_data();
+                frame = frame.get_data();
                 cloud_.points.clear();
                 auto points = pc.calculate(depth);
                 auto vertices = points.get_vertices();
