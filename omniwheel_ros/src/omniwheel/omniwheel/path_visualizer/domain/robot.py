@@ -229,6 +229,7 @@ class Robot:
         try:
             response = future.result()
             self.motors_enabled = response.enabled
+            self.node.get_logger().info("Set self.motors_enabled to " + str(response.enabled))
         except Exception as e:
             self.node.get_logger().info('Enable Motors Service call failed %r' % (e,))
 
