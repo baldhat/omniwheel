@@ -27,23 +27,23 @@ class LidarNode : public rclcpp::Node
   public:
     rs2::pipeline p;
     rs2::pointcloud pc;
+    const int CAPACITY = 5; // allow max latency of 5 frames
+    rs2::frame_queue queue(CAPACITY);
     LidarNode()
     : Node("lidar_node")
     {
-      pub_ = create_publisher<sensor_msgs::msg::PointCloud2>("lidar/points", 10);
-      enable_service =
+        pub_ = create_publisher<sensor_msgs::msg::PointCloud2>("lidar/points", 10);
+        enable_service =
         create_service<std_srvs::srv::SetBool>("enable_lidar", &enable_lidar);
 
-      // supported resolutions L515: 320x240, 640x480, 1024x768
-      rs2::config cfg;
-      cfg.enable_stream(RS2_STREAM_DEPTH, 320, 240, RS2_FORMAT_Z16, 30);
-      //cfg.enable_stream(RS2_STREAM_INFRARED, 320, 240, RS2_FORMAT_Z16, 30);
-      p.start(cfg);
+        // supported resolutions L515: 320x240, 640x480, 1024x768
+        rs2::config cfg;
+        cfg.enable_stream(RS2_STREAM_DEPTH, 320, 240, RS2_FORMAT_Z16, 30);
+        //cfg.enable_stream(RS2_STREAM_INFRARED, 320, 240, RS2_FORMAT_Z16, 30);
+        p.start(cfg);
 
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Ready...");
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Ready...");
     }
-    const auto CAPACITY = 5; // allow max latency of 5 frames
-    rs2::frame_queue queue(CAPACITY);
 
     void run() {
       std::thread t([&]() {
