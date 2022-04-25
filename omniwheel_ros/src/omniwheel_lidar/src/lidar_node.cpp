@@ -72,9 +72,6 @@ class LidarNode : public rclcpp::Node
                 pc2_msg_.header.frame_id = "lidar_link";
 
                 pub_->publish(pc2_msg_);
-
-                std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-                std::cout << "FPS = " << 1000000.0 / std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << std::endl;
             }
         }
       });
@@ -82,9 +79,7 @@ class LidarNode : public rclcpp::Node
 
       while (true) {
         if (enabled) {
-          std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
           rs2::frameset frames = p.wait_for_frames();
-
           queue.enqueue(frames.get_depth_frame());
         }
         rclcpp::spin_some(this->get_node_base_interface());
