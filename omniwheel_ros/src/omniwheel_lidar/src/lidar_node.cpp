@@ -14,6 +14,8 @@
 using namespace std::chrono_literals;
 
 bool enabled = false;
+const int CAPACITY = 5; // allow max latency of 5 frames
+rs2::frame_queue queue(CAPACITY);
 
 void enable_lidar(const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
                   std::shared_ptr<std_srvs::srv::SetBool::Response> response) {
@@ -27,8 +29,6 @@ class LidarNode : public rclcpp::Node
   public:
     rs2::pipeline p;
     rs2::pointcloud pc;
-    const int CAPACITY = 5; // allow max latency of 5 frames
-    rs2::frame_queue queue(CAPACITY);
     LidarNode()
     : Node("lidar_node")
     {
@@ -60,7 +60,7 @@ class LidarNode : public rclcpp::Node
                         pt.x = vertices[i].x;
                         pt.y = vertices[i].y;
                         pt.z = vertices[i].z;
-                        pt.i = 1.0;
+                        pt.intensity = 1.0;
                         cloud_.points.push_back(pt);
                     }
                 }
