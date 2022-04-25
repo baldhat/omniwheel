@@ -29,6 +29,7 @@ class LidarNode : public rclcpp::Node
   public:
     rs2::pipeline p;
     rs2::pointcloud pc;
+    rs2::depth_frame frame;
     LidarNode()
     : Node("lidar_node")
     {
@@ -47,11 +48,9 @@ class LidarNode : public rclcpp::Node
     void run() {
       std::thread t([&]() {
         while (true){
-            rs2::depth_frame frame;
             if (queue.poll_for_frame(&frame)) {
-                auto depth = frame.get_data();
                 cloud_.points.clear();
-                auto points = pc.calculate(depth);
+                auto points = pc.calculate(frame.get_data(););
                 auto vertices = points.get_vertices();
                 for (size_t i = 0; i < points.size(); i++) {
                     pcl::PointXYZI pt = pcl::PointXYZI();
