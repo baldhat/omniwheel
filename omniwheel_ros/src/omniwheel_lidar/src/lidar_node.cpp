@@ -50,7 +50,7 @@ class LidarNode : public rclcpp::Node
         while (true){
             if (queue.poll_for_frame(&frame)) {
                 cloud_.points.clear();
-                auto points = pc.calculate(frame.get_data(););
+                auto points = pc.calculate(frame.get_data());
                 auto vertices = points.get_vertices();
                 for (size_t i = 0; i < points.size(); i++) {
                     pcl::PointXYZI pt = pcl::PointXYZI();
