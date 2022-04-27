@@ -7,18 +7,18 @@ from nav_msgs.msg import Odometry
 
 
 class FramePublisher(Node):
-    """ Creates a Transformation from the wheel_odometry topic and publishes it.
+    """ Creates a Transformation from the odom topic and publishes it.
     Subscriber:
-        - /wheel_odometry
+        - /odom
     """
 
     def __init__(self):
         super().__init__('base_link_frame_publisher')
         self.br = TransformBroadcaster(self)
-        self.subscription = self.create_subscription(Odometry, '/wheel_odometry', self.handle_turtle_pose, 1)
+        self.subscription = self.create_subscription(Odometry, '/odom', self.handle_turtle_pose, 1)
 
     def handle_turtle_pose(self, msg: Odometry):
-        """ Callback for the wheel_odometry topic messages.
+        """ Callback for the odom topic messages.
         Creates TransformStamped object, adds the information from the pose message and broadcasts it.
         """
         t = TransformStamped()

@@ -18,7 +18,7 @@ class Robot:
     This class represents the omniwheel robot to the path_visualizer.
 
     Subscribers:
-        - wheel_odometry (Listen to the current pose of the robot)
+        - odom (Listen to the current pose of the robot)
         - motor_state (Listen to the current enabled-state of the motors)
         - battery_state (Listen to the current battery level)
     Service clients:
@@ -33,7 +33,7 @@ class Robot:
     def __init__(self, node):
         self.node = node
         # Topic subscriptions
-        node.create_subscription(Odometry, 'wheel_odometry', self.pose_update, 10)
+        node.create_subscription(Odometry, 'odom', self.pose_update, 10)
         node.create_subscription(MotorState, 'motor_state', self.motor_state_callback, 10)
         node.create_subscription(BatteryState, 'battery_state', self.battery_state_callback, 10)
         # Service clients
@@ -45,7 +45,7 @@ class Robot:
         self.waypoint_client = ActionClient(node, Waypoints, 'waypoints')
         self.waypoint_goal_handle = None  # Used for action cancellation
 
-        self.pose = Pose2D(0, 0, 0)  # The current pose of the robot, updated by wheel_odometry messages
+        self.pose = Pose2D(0, 0, 0)  # The current pose of the robot, updated by odom messages
         self.twist = Twist2D(0, 0, 0)  # The current angular and linear velocities of the robot
         self.motors_enabled = False  # Motor state, updated by motor_state messages
         # Local representation of the lidar state. At startup this can be wrong, but will be correct after the first
@@ -73,7 +73,7 @@ class Robot:
 
     def pose_update(self, msg):
         """
-        Callback for messages of the wheel_odometry topic.
+        Callback for messages of the odom topic.
         """
         x, y, z, w = msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, \
                      msg.pose.pose.orientation.w

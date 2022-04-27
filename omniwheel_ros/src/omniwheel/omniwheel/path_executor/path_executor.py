@@ -21,14 +21,14 @@ from nav_msgs.msg import Odometry
 class PathExecutor(Node):
     """ The PathExecutor is primarily a ROS ActionServer to execute waypoint missions.
 
-        It also subscribes to the wheel_odometry topic to receive feedback on the current robot position.
+        It also subscribes to the odom topic to receive feedback on the current robot position.
         Before sending controller_values via the publisher, it sends the enable_motors service an enable command, and
         disables the motors afterwards.
 
         Publishers:
             - controller_value
         Subscribers:
-            - /wheel_odometry
+            - /odom
         Service clients:
             - enable_motors
         Action servers:
@@ -41,7 +41,7 @@ class PathExecutor(Node):
                                                     self.execute_callback, cancel_callback=self.cancel_callback)
         self.publisher_ = self.create_publisher(ControllerValue, 'controller_value', 10)
         self.enable_motors_client = self.create_client(EnableMotors, 'enable_motors')
-        self.pose_subscription = self.create_subscription(Odometry, '/wheel_odometry', self.pose_callback, 10)
+        self.pose_subscription = self.create_subscription(Odometry, '/odom', self.pose_callback, 10)
 
         self.get_logger().info(str(self.get_clock().now().to_msg()))
 

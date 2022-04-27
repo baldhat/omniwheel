@@ -21,7 +21,7 @@ class TeensyNode(Node):
     Subscribers:
         - controller_value
     Publishers:
-        - wheel_odometry
+        - odom
         - motor_state
         - battery_state
     Service servers:
@@ -39,7 +39,7 @@ class TeensyNode(Node):
         self.config_service = self.create_service(DriveConfig, 'drive_config', self.drive_config_callback)
         self.position_service = self.create_service(SetPose, 'set_pose', self.set_pose_callback)
         # topic publishers
-        self.odometry = self.create_publisher(Odometry, '/wheel_odometry', 10)
+        self.odometry = self.create_publisher(Odometry, '/odom', 10)
         self.enable_publisher = self.create_publisher(MotorState, 'motor_state', 10)
         self.battery_publisher = self.create_publisher(BatteryState, 'battery_state', 10)
         # timers
@@ -72,7 +72,7 @@ class TeensyNode(Node):
 
     def odom_timer_callback(self):
         """ Callback for the odometry timer.
-        Publishes the pose and twist of the robot in the wheel_odometry topic.
+        Publishes the pose and twist of the robot in the odom topic.
         Also checks when the last time a controller_value msg was received. If none was received for 100ms, a soft stop
         is undertaken.
         """
