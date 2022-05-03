@@ -12,7 +12,7 @@
 
 #define VELOCITY_UPDATE_PERIOD_MICROSECONDS 50000  // 50 ms
 
-// Pin numbers of the micro step selection pins 
+// Pin numbers of the micro step selection pins
 #define MS1 26
 #define MS2 25
 #define MS3 24
@@ -40,8 +40,8 @@ float accelerations[3]; // Current accelerations of the wheels
 float WHEEL_PHASES[3] = {2.61799, 0.523599, 4.71239};
 
 void setup() {
-  // The Teensy USB Serial ignores this number and just uses the maximum
-  // available USB speed:
+  // The Teensy USB Serial ignores the baud rate and just uses the maximum
+  // available USB speed, we still need to call the .begin method.
   Serial.begin(4000000);
 
   pinMode(MS1, OUTPUT); pinMode(MS2, OUTPUT); pinMode(MS3, OUTPUT);
@@ -79,7 +79,6 @@ void runCommand(Command command) {
       println(getBatteryVoltage()); break;
     case 'I':
       drivingLoop(); break;
-
   }
 }
 
@@ -100,7 +99,7 @@ void runInteractiveCommand(Command command) {
 
 
 /**
- * Change the current driving target_velocities and accelerations based on 
+ * Change the current driving target_velocities and accelerations based on
  * the given command.
  */
 void updateTargets(Command command) {
@@ -130,7 +129,7 @@ void updateTargets(Command command) {
 
   // The greatest delta_v gets the maximum acceleration, the rest get accelerations
   // proportional to their delta_v / max_delta_v. This ensures all the wheels finishing
-  // acceleration at the same time. 
+  // acceleration at the same time.
   if (delta_vs[0] != 0 && delta_vs[0] >= delta_vs[1] && delta_vs[0] >= delta_vs[2]) {
     accelerations[1] = default_acceleration * (delta_vs[1] / delta_vs[0]);
     accelerations[2] = default_acceleration * (delta_vs[2] / delta_vs[0]);
@@ -186,8 +185,8 @@ void drivingLoop() {
     }
 
     /* For each motor:
-     * Check if the time has passed to flip the step pin. This time is determined by the 
-     * absolute spike periods. The spike period isn't defined for zero velocities, so we don't 
+     * Check if the time has passed to flip the step pin. This time is determined by the
+     * absolute spike periods. The spike period isn't defined for zero velocities, so we don't
      * flip the pin.
      * Increase/decrease the motor steps on every pin flip. (So we actually log half steps)
      */
@@ -209,7 +208,7 @@ void drivingLoop() {
       if (wheel_velocities[2] > 0) steps[2]++; else steps[2]--;
     }
 
-    // After VELOCITY_UPDATE_PERIOD_MICROSECONDS have passed, update the velocities and send 
+    // After VELOCITY_UPDATE_PERIOD_MICROSECONDS have passed, update the velocities and send
     // the recorded (half)steps.
     if (micros() - last_velocity_update > VELOCITY_UPDATE_PERIOD_MICROSECONDS) {
       last_velocity_update = micros();
@@ -225,7 +224,8 @@ void drivingLoop() {
 
   for (int i = 0; i < 3; i++) digitalWrite(enablePins[i], HIGH); // When leaving, disable motors
 
-  // Send another step update with all zeros, so the node knows we have come to a halt
+  // Send another step update with all zeros, so the host knows we have come to
+  // a halt (i.e. our velocity is zero)
   for (int i = 0; i < 3; i++) steps[i] = 0;
   sendSteps(steps);
 }
@@ -244,7 +244,7 @@ void updateVelocities(float abs_spike_periods[3]) {
       if (wheel_velocities[i] > target_velocities[i]) {
         wheel_velocities[i] = target_velocities[i];
       }
-      abs_spike_periods[i] = abs(velocityPWMConversion(wheel_velocities[i])) / 2;
+      abs_spike_periods[i] = abs(velocityPWMConversion(wheel_velocities[i])) / 2; // abs_spike_periods stores the periods for half steps
     } else if (wheel_velocities[i] > target_velocities[i]) {
       wheel_velocities[i] -= accelerations[i] / acceleration_fraction;
       if (wheel_velocities[i] < target_velocities[i]) wheel_velocities[i] = target_velocities[i];
@@ -254,7 +254,7 @@ void updateVelocities(float abs_spike_periods[3]) {
 }
 
 /**
- * Sets the output of the stepper driver direction pins according to the sign 
+ * Sets the output of the stepper driver direction pins according to the sign
  * of the wheel velocities.
  */
 void setDirectionPins() {
@@ -287,7 +287,7 @@ float velocityPWMConversion(float value) {
 /**
  * Set the micro step configuration pins of the drivers according to the current micro steps.
  * The table describing the possible combinations can be found in the wiki.
- */ 
+ */
 void setMicrostepPins(int micro_steps) {
   switch (micro_steps) {
     case 1:

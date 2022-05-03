@@ -1,5 +1,9 @@
 #include "Arduino.h"
 
+/**
+  Contains a number of helper methods for easier printing to the serial connection.
+*/
+
 void println(String message, float value) {
   Serial.print(message); Serial.println(value, 5);
 }
