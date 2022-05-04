@@ -54,12 +54,11 @@ class LidarNode : public rclcpp::Node
           auto points = pc.calculate(depth);
           auto vertices = points.get_vertices();
           for (size_t i = 0; i < points.size(); i++) {
-            pcl::PointXYZI pt = pcl::PointXYZI();
+            pcl::PointXYZ pt = pcl::PointXYZ();
             if (vertices[i].x != 0 || vertices[i].y != 0 || vertices[i].z != 0) {
               pt.x = vertices[i].x;
               pt.y = vertices[i].y;
               pt.z = vertices[i].z;
-              pt.intensity = 1.0;
               cloud_.points.push_back(pt);
             }
           }
@@ -80,7 +79,7 @@ class LidarNode : public rclcpp::Node
     }
 
   private:
-    pcl::PointCloud<pcl::PointXYZI> cloud_;
+    pcl::PointCloud<pcl::PointXYZ> cloud_;
     sensor_msgs::msg::PointCloud2 pc2_msg_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_;
     rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr enable_service;
