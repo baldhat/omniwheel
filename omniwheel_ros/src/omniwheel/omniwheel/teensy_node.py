@@ -174,7 +174,7 @@ class TeensyNode(Node):
         """
         if request.microsteps > 0 and request.microsteps in self.valid_micro_steps:
             command = ("{M;%d}" % request.microsteps).encode()
-            self.get_logger().info(command)
+            self.get_logger().info(command.decode())
             self.ser.write(command)
             self.micro_steps = request.microsteps
         response.microsteps = self.micro_steps
@@ -186,7 +186,7 @@ class TeensyNode(Node):
         if request.velocity > 0:
             vel = round(request.velocity, 2)
             command = ("{S;%f}" % vel).encode()
-            self.get_logger().info(command)
+            self.get_logger().info(command.decode())
             self.ser.write(command)
             self.max_velocity = vel
         response.velocity = self.max_velocity
@@ -198,7 +198,7 @@ class TeensyNode(Node):
         if request.acceleration > 0:
             acc = round(request.acceleration, 2)
             command = ("{A;%f}" % acc).encode()
-            self.get_logger().info(command)
+            self.get_logger().info(command.decode())
             self.ser.write(command)
             self.acceleration = acc
 
