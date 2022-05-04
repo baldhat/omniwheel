@@ -10,7 +10,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 def generate_launch_description():
    workstation_node = IncludeLaunchDescription(
       PythonLaunchDescriptionSource([os.path.join(
-         get_package_share_directory('omniwheel'), 'launch'),
+         get_package_share_directory('omniwheel'), ''),
          '/workstation_launch.py'])
       )
    visualization_node = IncludeLaunchDescription(
@@ -18,14 +18,8 @@ def generate_launch_description():
          get_package_share_directory('omniwheel_visualization'), 'launch'),
          '/display.launch.py'])
       )
-   slam_node = IncludeLaunchDescription(
-      PythonLaunchDescriptionSource([os.path.join(
-         get_package_share_directory('lidarslam'), 'launch'),
-         '/lidarslam.launch.py'])
-  )
 
    return LaunchDescription([
       workstation_node,
-      visualization_node,
-      slam_node,
+      visualization_node
    ])
