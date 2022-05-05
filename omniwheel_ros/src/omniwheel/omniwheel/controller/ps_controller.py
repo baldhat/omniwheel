@@ -17,7 +17,7 @@ from omniwheel.helper.helper import to_polar
 def color(red, green, blue):
     """ Set the color of the PS4 Controller to the given RGB value.
 
-        For this to work without root permission problems, the udev rules in the udev directoy need to be copied
+        For this to work without root permission problems, the udev rules in the udev directory need to be copied
         to the /etc/udev/rules.d directory and the user needs to be added to the input group. For these changes
         to take effect, the user might need to logout and login again.
     """

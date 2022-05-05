@@ -161,7 +161,8 @@ class TeensyNode(Node):
 
     def drive_config_callback(self, request, response):
         """ Callback for the DriveConfig service.
-        Handles the request by calling the handlers for the three values.
+        Handles the request by calling the handlers for the three values. If a given value is 0 or less, or the value
+        is not valid (for micro steps), the value is not set, but the current value is returned.
         """
         self.handle_acceleration_change(request, response)
         self.handle_velocity_change(request, response)
@@ -253,7 +254,7 @@ class TeensyNode(Node):
 
     def checkSerial(self):
         """ Check for a new serial message from the teensy.
-        Depending on the message, it either gets logged or is interpreted as a update on the executed motor steps
+        Depending on the message, it either gets logged or is interpreted as an update on the executed motor steps
         """
         while self.ser.inWaiting():
             line = self.ser.readline().decode().strip()
