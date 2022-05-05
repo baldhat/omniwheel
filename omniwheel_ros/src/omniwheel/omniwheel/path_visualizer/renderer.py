@@ -94,12 +94,12 @@ class Renderer:
                        (0, 255, 255) if robot.motors_enabled else (255, 0, 0), (self.WIDTH * 0.85, self.HEIGHT * 0.01))
 
     def render_position(self, robot):
-        self.draw_text('Position: ' + str(round(robot.pose.x, 2)) + "x " + str(round(robot.pose.y, 2)) + "y "
+        self.draw_text('Position [m]: ' + str(round(robot.pose.x, 2)) + "x " + str(round(robot.pose.y, 2)) + "y "
                        '(' + str(round(robot.pose.rot * 180 / math.pi, 1)) + "°)",
                        (255, 255, 255), (self.WIDTH * 0.81, self.HEIGHT * 0.05))
 
     def render_battery_voltage(self, robot):
-        self.draw_text('Battery Voltage: ' + str(round(robot.battery_voltage, 2)),
+        self.draw_text('Battery Voltage: ' + str(round(robot.battery_voltage, 2) + 'V'),
                        (255, 255, 255), (self.WIDTH * 0.81, self.HEIGHT * 0.08))
 
     def render_micro_steps(self, robot):

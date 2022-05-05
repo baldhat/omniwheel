@@ -24,7 +24,7 @@ class PathVisualizer(Node):
 
     def timer_callback(self):
         """
-        As long as the stop handler hasn't been called, spin the ros node, render the robot data and position and
+        As long as the stop handler hasn't been called, render the robot data and position and
         check for events.
         The frame- and update-rate is locked to 20Hz.
         """
