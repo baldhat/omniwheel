@@ -1,1 +1,1 @@
-# Siehe Wiki: https://github.com/baldhat/omniwheel/wiki
+# Siehe [Wiki](https://github.com/baldhat/omniwheel/wiki)
