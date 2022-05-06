@@ -8,7 +8,7 @@ from nav_msgs.msg import Odometry
 
 class FramePublisher(Node):
     """ Creates a Transformation from the odom topic and publishes it.
-    Subscriber:
+    Subscribing to:
         - /odom
     """
 

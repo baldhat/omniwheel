@@ -116,13 +116,12 @@ Visualization Manager:
       Name: PointCloud2
       Position Transformer: XYZ
       Selectable: true
-      Size (Pixels): 3
+      Size (Pixels): 1
       Size (m): 0.009999999776482582
-      Style: Flat Squares
+      Style: Points
       Topic:
         Depth: 5
         Durability Policy: Volatile
-        Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /lidar/points
@@ -150,25 +149,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 5.497115135192871
+      Distance: 0.6517209410667419
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 1.3762774467468262
-        Y: 0.7161691784858704
-        Z: 0.47305986285209656
+        X: -0.015686342492699623
+        Y: -0.1546279639005661
+        Z: 0.137642040848732
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.49539875984191895
+      Pitch: 0.5153989195823669
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 5.048586845397949
+      Yaw: 2.383574962615967
     Saved: ~
 Window Geometry:
   Displays:
