@@ -116,8 +116,10 @@ class PSController(Node):
         key_event = categorize(event)
         if key_event.keystate == KeyEvent.key_down:
             if key_event.keycode[0] == 'BTN_A':
+                self.get_logger().info("Button press a")
                 self.send_enable_motors(True)
             if key_event.keycode[0] == 'BTN_WEST':
+                self.get_logger().info("Button press west")
                 self.send_enable_motors(False)
 
     def update_controller_values(self):
