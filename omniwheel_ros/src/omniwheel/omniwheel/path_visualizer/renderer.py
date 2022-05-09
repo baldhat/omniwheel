@@ -99,7 +99,7 @@ class Renderer:
                        (255, 255, 255), (self.WIDTH * 0.81, self.HEIGHT * 0.05))
 
     def render_battery_voltage(self, robot):
-        self.draw_text('Battery Voltage: ' + str(round(robot.battery_voltage, 2) + 'V'),
+        self.draw_text('Battery Voltage: ' + str(round(robot.battery_voltage, 2)) + 'V',
                        (255, 255, 255), (self.WIDTH * 0.81, self.HEIGHT * 0.08))
 
     def render_micro_steps(self, robot):

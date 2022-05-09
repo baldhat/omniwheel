@@ -64,7 +64,6 @@ class PathExecutor(Node):
         """
         self.pre_execute()
         poses = [self.pose_msg_to_pose2d(pose_msg) for pose_msg in goal_handle.request.poses]
-        self.get_logger().info(str(poses))
 
         for pose in poses:
             self.drive_to_pose(pose)
