@@ -65,7 +65,7 @@ class PSController(Node):
         connected = False
         while not connected:
             try:
-                self.gamepad = InputDevice('/dev/input/event2')
+                self.gamepad = InputDevice('/dev/input/event3')
                 connected = True
                 show_connected()
             except:
@@ -91,7 +91,6 @@ class PSController(Node):
                     if event.type == ecodes.EV_ABS:
                         self.handle_joysticks(event)
                     elif event.type == ecodes.EV_KEY:
-                        self.get_logger().info("button press")
                         self.handle_buttons(event)
             rclpy.spin_once(self, timeout_sec=0.01)
 
@@ -117,10 +116,8 @@ class PSController(Node):
         key_event = categorize(event)
         if key_event.keystate == KeyEvent.key_down:
             if key_event.keycode[0] == 'BTN_A':
-                self.get_logger().info("Button press a")
                 self.send_enable_motors(True)
             if key_event.keycode[0] == 'BTN_WEST':
-                self.get_logger().info("Button press west")
                 self.send_enable_motors(False)
 
     def update_controller_values(self):
