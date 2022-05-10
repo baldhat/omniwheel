@@ -1,5 +1,6 @@
 import rclpy
 from rclpy.action import ActionServer
+from rclpy.action.server import ServerGoalHandle, CancelResponse
 from rclpy.node import Node
 from rclpy.executors import MultiThreadedExecutor
 
@@ -58,7 +59,7 @@ class PathExecutor(Node):
 
         self.get_logger().info("Ready...")
 
-    def execute_callback(self, goal_handle):
+    def execute_callback(self, goal_handle: ServerGoalHandle):
         """ Executes a waypoint mission by iteratively driving to all waypoints and sending feedback after a
             waypoint has been reached.
         """
@@ -69,6 +70,10 @@ class PathExecutor(Node):
             self.drive_to_pose(pose)
             if not self.cancel_action_execution:
                 self.send_feedback(goal_handle)
+            else:
+                result = Waypoints.Result()
+                result.final_pose = self.pose_to_msg(self.pose)
+                goal_handle.canceled()
 
         return self.post_execute(goal_handle)
 
@@ -85,9 +90,9 @@ class PathExecutor(Node):
             result to the action client.
         """
         self.send_enable_motors(False)
-        goal_handle.succeed()
         result = Waypoints.Result()
-        result.final_pose = self.pose
+        result.final_pose = self.pose_to_msg(self.pose)
+        goal_handle.succeed(result)
         return result
 
     def drive_to_pose(self, pose: Pose2D):
@@ -166,12 +171,10 @@ class PathExecutor(Node):
 
     def cancel_callback(self, _):
         """ This method gets called to determine whether an action should be cancelled.
-            Return code 1 represents NO_CANCEL.
-            Return code 2 represents CANCEL.
             We use this method to also set the cancel_actino_execution flag to True
         """
         self.cancel_action_execution = True
-        return 2
+        return CancelResponse.ACCEPT
 
     def send_feedback(self, goal_handle):
         """ Send the feedback message to the action client.
@@ -198,6 +201,11 @@ class PathExecutor(Node):
 
     def pose_msg_to_pose2d(self, pose_msg: PoseMsg):
         return Pose2D(pose_msg.x, pose_msg.y, pose_msg.rot)
+
+    def pose_to_msg(self, pose: Pose2D):
+        msg = PoseMsg()
+        msg.x, msg.y, msg.rot = pose.x, pose.y, pose.rot
+        return msg
 
 
 def main(args=None):

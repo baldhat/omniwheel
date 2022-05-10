@@ -91,6 +91,7 @@ class PSController(Node):
                     if event.type == ecodes.EV_ABS:
                         self.handle_joysticks(event)
                     elif event.type == ecodes.EV_KEY:
+                        self.get_logger().info("button press")
                         self.handle_buttons(event)
             rclpy.spin_once(self, timeout_sec=0.01)
 
