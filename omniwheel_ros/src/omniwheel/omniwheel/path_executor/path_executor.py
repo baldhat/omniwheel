@@ -27,24 +27,22 @@ class PathExecutor(Node):
         disables the motors afterwards.
 
         Publishers:
-            - controller_value
+            - /controller_value
         Subscribers:
             - /odom
         Service clients:
-            - enable_motors
+            - /enable_motors
         Action servers:
-            - waypoints
+            - /waypoints
     """
 
     def __init__(self):
         super().__init__('path_executor')
-        self._waypoint_action_server = ActionServer(self, Waypoints, 'waypoints',
+        self._waypoint_action_server = ActionServer(self, Waypoints, '/waypoints',
                                                     self.execute_callback, cancel_callback=self.cancel_callback)
-        self.publisher_ = self.create_publisher(ControllerValue, 'controller_value', 10)
-        self.enable_motors_client = self.create_client(EnableMotors, 'enable_motors')
+        self.publisher_ = self.create_publisher(ControllerValue, '/controller_value', 10)
+        self.enable_motors_client = self.create_client(EnableMotors, '/enable_motors')
         self.pose_subscription = self.create_subscription(Odometry, '/odom', self.pose_callback, 10)
-
-        self.get_logger().info(str(self.get_clock().now().to_msg()))
 
         # The current pose of the robot. This gets updated in self.pose_callback
         self.pose = Pose2D(0, 0, 0)
@@ -74,7 +72,6 @@ class PathExecutor(Node):
                 result = Waypoints.Result()
                 result.final_pose = self.pose_to_msg(self.pose)
                 goal_handle.canceled()
-
         return self.post_execute(goal_handle)
 
     def pre_execute(self):
@@ -84,7 +81,7 @@ class PathExecutor(Node):
         self.cancel_action_execution = False
         self.send_enable_motors(True)
 
-    def post_execute(self, goal_handle):
+    def post_execute(self, goal_handle: ServerGoalHandle):
         """Needs to be called when all waypoints have been reached.
             Disables motors and sends the successful
             result to the action client.
@@ -92,7 +89,8 @@ class PathExecutor(Node):
         self.send_enable_motors(False)
         result = Waypoints.Result()
         result.final_pose = self.pose_to_msg(self.pose)
-        goal_handle.succeed(result)
+        goal_handle.succeed()
+        self.get_logger().info("Finished goal")
         return result
 
     def drive_to_pose(self, pose: Pose2D):
@@ -191,7 +189,8 @@ class PathExecutor(Node):
         """
         request = EnableMotors.Request()
         request.enable = value
-        self.enable_motors_client.call(request)  # synchronous call, blocks if service is unavailable
+        future = self.enable_motors_client.call_async(request)
+        future.add_done_callback(lambda response: self.get_logger().info("Motors disabled"))
 
     def pose_callback(self, msg):
         x, y, z, w = msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, \
