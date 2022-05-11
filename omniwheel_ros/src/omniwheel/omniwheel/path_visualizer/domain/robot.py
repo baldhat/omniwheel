@@ -191,7 +191,8 @@ class Robot:
         waypoint
         """
         self.node.get_logger().info('Reached waypoint: ' + str(feedback.feedback.completed_pose))
-        self.planned_poses.pop(0)
+        if len(self.planned_poses) > 0:
+            self.planned_poses.pop(0)
 
     def cancel_waypoint_mission(self):
         """
