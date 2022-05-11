@@ -149,7 +149,7 @@ class Robot:
 
     def create_waypoint_goal(self):
         """
-        Create the action goal for a waypoint action and added the planed poses.
+        Create the action goal for a waypoint action and add the planed poses.
         """
         goal = Waypoints.Goal()
         goal.poses = []
@@ -167,12 +167,12 @@ class Robot:
         """
         self.waypoint_goal_handle = future.result()
         if not self.waypoint_goal_handle.accepted:
-            self.node.get_logger().debug('Goal rejected')
+            self.node.get_logger().info('Goal rejected')
             self.planned_poses = []
             self.waypoint_goal_handle = None
             return
 
-        self.node.get_logger().debug('Goal accepted')
+        self.node.get_logger().info('Goal accepted')
         waypoints_result_future = self.waypoint_goal_handle.get_result_async()
         waypoints_result_future.add_done_callback(self.waypoints_result_callback)
 
@@ -181,7 +181,7 @@ class Robot:
         Callback for the result of a waypoint action. Clears the planned waypoints.
         """
         result = future.result().result
-        self.node.get_logger().debug('Finished waypoint mission on pose: ' + str(result.final_pose))
+        self.node.get_logger().info('Finished waypoint mission on pose: ' + str(result.final_pose))
         self.planned_poses = []
         self.waypoint_goal_handle = None
 
@@ -190,7 +190,7 @@ class Robot:
         Callback for the feedback on a waypoint action. Removes the first element of the planned poses, aka the reached
         waypoint
         """
-        self.node.get_logger().debug('Reached waypoint: ' + str(feedback.feedback.completed_pose))
+        self.node.get_logger().info('Reached waypoint: ' + str(feedback.feedback.completed_pose))
         self.planned_poses.pop(0)
 
     def cancel_waypoint_mission(self):

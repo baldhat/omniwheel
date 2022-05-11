@@ -52,7 +52,7 @@ class PathExecutor(Node):
         # Defines the angular distance in rad at which the executor assumes a waypoint to be reached
         self.MAX_ROT_ERROR = 0.02
 
-        # If set to high, the executor stops the current action
+        # If set to True, the executor stops the current action
         self.cancel_action_execution = False
 
         self.get_logger().info("Ready...")
@@ -136,7 +136,7 @@ class PathExecutor(Node):
             The velocity gets reduced, if the robot is close to the target rotation.
         """
         if self.eucledian_distance(pose) > self.MAX_POS_ERROR:
-            velocity = 1 if dist > 0.1 else 10 * dist
+            velocity = 1 if dist > 0.1 else 5 * dist
         else:
             velocity = 0
         return velocity
