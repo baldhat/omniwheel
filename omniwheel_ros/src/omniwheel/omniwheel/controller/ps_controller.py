@@ -123,8 +123,8 @@ class PSController(Node):
                 self.send_enable_motors(True)
             if key_event.keycode[0] == 'BTN_WEST':
                 self.send_enable_motors(False)
-            else:
-                print(key_event.keycode[0])
+
+            print(key_event.keycode[0])
             if key_event.keycode[0] == 'BTN_UP':
                 self.index = (self.index + 1) % 4
                 self.connect()
