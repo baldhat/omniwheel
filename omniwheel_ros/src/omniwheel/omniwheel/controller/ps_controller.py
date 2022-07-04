@@ -127,7 +127,11 @@ class PSController(Node):
             self.get_logger().info(str(key_event.keycode[0]))
             if key_event.keycode[0] == 'BTN_NORTH':
                 self.index = (self.index + 1) % 4
-                self.connect()
+                try:
+                    color(255, 255, 255)
+                    self.connect()
+                except:
+                    pass
 
     def update_controller_values(self):
         """ Publish the controller_value, if the motors are enabled and we have not already sent a command with all
