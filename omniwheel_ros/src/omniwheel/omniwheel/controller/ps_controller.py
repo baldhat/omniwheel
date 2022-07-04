@@ -63,11 +63,10 @@ class PSController(Node):
 
         # Wait for the PS4 Controller to be connected
         connected = False
+        self.index = 2
         while not connected:
             try:
-                self.gamepad = InputDevice('/dev/input/event3')
-                connected = True
-                show_connected()
+                connected = self.connect()
             except:
                 time.sleep(1)
 
@@ -80,6 +79,11 @@ class PSController(Node):
         self.controller_rotation = 0
 
         self.get_logger().info("Ready...")
+
+    def connect(self):
+        self.gamepad = InputDevice('/dev/input/event' + str(self.index))
+        show_connected()
+        return True
 
     def run(self):
         """ Constantly check for controller changes and spin the ROS node.
@@ -119,6 +123,9 @@ class PSController(Node):
                 self.send_enable_motors(True)
             if key_event.keycode[0] == 'BTN_WEST':
                 self.send_enable_motors(False)
+            if key_event.keycode[0] == 'BTN_UP':
+                self.index = (self.index + 1) % 4
+                self.connect()
 
     def update_controller_values(self):
         """ Publish the controller_value, if the motors are enabled and we have not already sent a command with all
