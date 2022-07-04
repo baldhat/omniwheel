@@ -63,12 +63,13 @@ class PSController(Node):
 
         # Wait for the PS4 Controller to be connected
         connected = False
-        self.index = 2
+        self.index = 3
         while not connected:
             try:
                 connected = self.connect()
             except:
                 time.sleep(1)
+                self.index = (self.index - 1) % 4
 
         # The value the controller returns when the stick is in the middle position
         self.JOYSTICK_ZERO_POINT = 127
@@ -123,15 +124,6 @@ class PSController(Node):
                 self.send_enable_motors(True)
             if key_event.keycode[0] == 'BTN_WEST':
                 self.send_enable_motors(False)
-
-            self.get_logger().info(str(key_event.keycode[0]))
-            if key_event.keycode[0] == 'BTN_NORTH':
-                self.index = (self.index + 1) % 4
-                try:
-                    color(255, 255, 255)
-                    self.connect()
-                except:
-                    pass
 
     def update_controller_values(self):
         """ Publish the controller_value, if the motors are enabled and we have not already sent a command with all
