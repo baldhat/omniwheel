@@ -141,7 +141,9 @@ class Robot:
         if len(self.planned_poses) <= 0:
             return
         goal = self.create_waypoint_goal()
+        self.node.get_logger().info("Waiting for path executor node to become available...")
         self.waypoint_client.wait_for_server()  # Blocks until the action server is available
+        self.node.get_logger().info("Connected!")
         send_waypoints_future = self.waypoint_client.send_goal_async(
             goal, feedback_callback=self.waypoints_feedback_callback
         )
